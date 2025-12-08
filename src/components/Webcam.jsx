@@ -17,7 +17,9 @@ const WebcamComponent = forwardRef(({
   videoUrl,
   isGeneratingVideo,
   onDownloadVideo,
-  allStrips
+  allStrips,
+  frameStyle,
+  setFrameStyle
 }, ref) => {
   return (
     <div className="webcam-section">
@@ -104,6 +106,45 @@ const WebcamComponent = forwardRef(({
           6 Photos
         </button>
       </div>}
+
+      {/* Frame Style Selector */}
+      <div className="frame-style-controls">
+        <label>Choose Frame Style:</label>
+        <button
+          onClick={() => setFrameStyle('blue')}
+          className={`btn-filter ${frameStyle === 'blue' ? 'active' : ''}`}
+          disabled={isCapturing}
+          style={{
+            background: frameStyle === 'blue' ? 'linear-gradient(180deg, #1e3a8a 0%, #3b82f6 100%)' : '#f0f0f0',
+            color: frameStyle === 'blue' ? '#ffffff' : '#000000'
+          }}
+        >
+          Blue Frame
+        </button>
+        <button
+          onClick={() => setFrameStyle('red')}
+          className={`btn-filter ${frameStyle === 'red' ? 'active' : ''}`}
+          disabled={isCapturing}
+          style={{
+            background: frameStyle === 'red' ? 'linear-gradient(180deg, #7f1d1d 0%, #dc2626 100%)' : '#f0f0f0',
+            color: frameStyle === 'red' ? '#ffffff' : '#000000'
+          }}
+        >
+          Red Frame
+        </button>
+        <button
+          onClick={() => setFrameStyle('white')}
+          className={`btn-filter ${frameStyle === 'white' ? 'active' : ''}`}
+          disabled={isCapturing}
+          style={{
+            background: frameStyle === 'white' ? 'linear-gradient(180deg, #e5e7eb 0%, #ffffff 100%)' : '#f0f0f0',
+            color: '#000000',
+            border: frameStyle === 'white' ? '2px solid #9ca3af' : 'none'
+          }}
+        >
+          White Frame
+        </button>
+      </div>
 
       {/* Controls */}
       <div className="controls">

@@ -170,6 +170,23 @@ h2 {
   flex-wrap: wrap;
 }
 
+/* Frame Style Controls */
+.frame-style-controls {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.frame-style-controls label {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.9rem;
+  margin-right: 0.5rem;
+}
+
 .control-label {
   font-weight: 600;
   color: #333;
@@ -243,36 +260,126 @@ h2 {
   flex: 0 0 auto;
 }
 
+/* Instagram Story Background Wrapper */
+.story-background {
+  width: 350px; /* Same as strip-border for preview */
+  aspect-ratio: 9 / 16; /* Instagram Story ratio (1080x1920) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* Background gradient untuk blue frame */
+.story-background.bg-blue {
+  background: linear-gradient(180deg, 
+    #1e3a8a 0%, 
+    #2563eb 20%,
+    #3b82f6 40%,
+    #60a5fa 60%,
+    #3b82f6 80%,
+    #2563eb 100%);
+}
+
+/* Background gradient untuk red frame */
+.story-background.bg-red {
+  background: linear-gradient(180deg, 
+    #7f1d1d 0%, 
+    #991b1b 20%,
+    #dc2626 40%,
+    #ef4444 60%,
+    #dc2626 80%,
+    #991b1b 100%);
+}
+
+/* Background gradient untuk white frame */
+.story-background.bg-white {
+  background: linear-gradient(180deg, 
+    #e5e7eb 0%, 
+    #f3f4f6 20%,
+    #f9fafb 40%,
+    #ffffff 60%,
+    #f9fafb 80%,
+    #f3f4f6 100%);
+}
+
 .photo-strip {
-  background: white;
-  padding: 1rem;
+  background: transparent;
+  padding: 0;
   border-radius: 20px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
 }
 
 .strip-border {
-  border: 4px solid #000;
-  padding: 1.5rem;
+  border: none;
+  padding: 20px;
   background: white;
-  width: 432px; /* Sesuai canvas: (180*2) + 8 + (24*2) + (8*2) = 432px */
+  width: 350px;
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Adjust width for 3 photos (1 column layout) */
 .photo-strip:has(.photo-grid-3) .strip-border {
-  width: 244px; /* Sesuai canvas: (180*1) + 0 + (24*2) + (8*2) = 244px */
+  width: 350px;
 }
 
 .photo-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: 1fr;
+  gap: 0;
+  margin-bottom: 0;
+  padding: 0;
+  padding-bottom: 15px;
 }
 
 /* Grid for 3 photos (1 column) */
 .photo-grid-3 {
   grid-template-columns: 1fr;
   grid-template-rows: repeat(3, 1fr);
+  gap: 12px;
+}
+
+/* Blue Frame - Gradient smooth dari atas ke bawah untuk seluruh strip */
+.strip-border.frame-blue {
+  background: linear-gradient(180deg, 
+    #1e3a8a 0%, 
+    #2563eb 20%,
+    #3b82f6 40%,
+    #60a5fa 60%,
+    #3b82f6 80%,
+    #2563eb 100%);
+}
+
+/* Red Frame - Gradient smooth dari atas ke bawah untuk seluruh strip */
+.strip-border.frame-red {
+  background: linear-gradient(180deg, 
+    #7f1d1d 0%, 
+    #991b1b 20%,
+    #dc2626 40%,
+    #ef4444 60%,
+    #dc2626 80%,
+    #991b1b 100%);
+}
+
+/* White Frame - Gradient smooth dari atas ke bawah untuk seluruh strip */
+.strip-border.frame-white {
+  background: linear-gradient(180deg, 
+    #e5e7eb 0%, 
+    #f3f4f6 20%,
+    #f9fafb 40%,
+    #ffffff 60%,
+    #f9fafb 80%,
+    #f3f4f6 100%);
+}
+
+/* Photo grid tanpa background, transparent untuk menampilkan gradient dari parent */
+.frame-blue .photo-grid,
+.frame-red .photo-grid,
+.frame-white .photo-grid {
+  background: transparent;
 }
 
 /* Grid for 4 photos (2x2) */
@@ -289,9 +396,9 @@ h2 {
   position: relative;
   background: #f0f0f0;
   overflow: hidden;
-  border-radius: 4px;
+  border-radius: 12px;
   width: 100%;
-  height: 180px;
+  aspect-ratio: 1 / 1; /* Square: sama tinggi dan lebarnya */
 }
 
 .photo-slot img {
@@ -327,9 +434,36 @@ h2 {
 
 .strip-footer {
   text-align: center;
-  border-top: 2px solid #000;
-  padding-top: 1rem;
+  border-top: none;
+  padding: 15px 20px;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
 }
+
+/* Footer transparent untuk menampilkan gradient dari parent */
+.strip-footer.footer-blue,
+.strip-footer.footer-red {
+  background: transparent;
+  color: white;
+}
+
+.strip-footer.footer-white {
+  background: transparent;
+  color: #1f2937; /* Dark gray text untuk white frame */
+}
+
+.footer-datetime {
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.4;
+}
+
+
 
 .strip-title {
   font-size: 0.7rem;

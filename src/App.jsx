@@ -17,6 +17,7 @@ function App() {
   const [allStrips, setAllStrips] = useState([]);
   const [videoUrl, setVideoUrl] = useState(null);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
+  const [frameStyle, setFrameStyle] = useState('blue'); // 'blue' or 'red'
 
   // Apply filter to image
   const applyFilter = useCallback((imageSrc, filterType) => {
@@ -136,7 +137,7 @@ function App() {
       if (webcamRef.current && photos.length < photoCount) {
         const imageSrc = webcamRef.current.getScreenshot();
         if (imageSrc) {
-          // Process live preview with same filter and flip as captured photos
+          // Process live preview with same filter and flip as cCaptured photos
           const processedPreview = await applyFilter(imageSrc, filter);
           setLivePreview(processedPreview);
         }
@@ -171,21 +172,20 @@ function App() {
         const canvasWidth = 1080;
         const canvasHeight = 1920;
         
-        // Ukuran yang lebih proporsional
-        const padding = 80;
-        const borderWidth = 20;
-        const footerHeight = 280; // Lebih besar untuk tulisan
+        // Padding untuk border gradient (sama seperti CSS padding: 20px tapi scaled untuk HD)
+        const padding = 100; // 20px * 5 (scale factor untuk HD)
+        const footerHeight = 300; // Footer height scaled untuk HD (reduced karena hanya tanggal dan jam)
         
         // Tentukan layout berdasarkan jumlah foto
         const isVertical = stripPhotos.length === 3; // 3 foto = 1 kolom vertikal
         const cols = isVertical ? 1 : 2;
         const rows = isVertical ? 3 : (stripPhotos.length === 4 ? 2 : 3);
         
-        // Hitung ukuran foto yang lebih kecil agar tidak terpotong
-        const availableWidth = canvasWidth - (padding * 2) - (borderWidth * 2);
-        const availableHeight = canvasHeight - (padding * 2) - (borderWidth * 2) - footerHeight;
+        // Hitung ukuran foto
+        const availableWidth = canvasWidth - (padding * 2);
+        const availableHeight = canvasHeight - (padding * 2) - footerHeight;
         
-        const gap = 24;
+        const gap = 60; // Gap scaled untuk HD (12px * 5)
         const photoSize = Math.floor(Math.min(
           (availableWidth - (gap * (cols - 1))) / cols,
           (availableHeight - (gap * (rows - 1))) / rows
@@ -194,17 +194,30 @@ function App() {
         canvas.width = canvasWidth;
         canvas.height = canvasHeight;
         
-        // Background putih
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-        
-        // Border hitam
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-        
-        // Area dalam putih
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(borderWidth, borderWidth, canvasWidth - (borderWidth * 2), canvasHeight - (borderWidth * 2));
+        // Draw smooth gradient background for entire strip (sama seperti di CSS)
+        if (frameStyle === 'blue') {
+          // Blue frame with smooth gradient dari atas ke bawah
+          const gradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
+          gradient.addColorStop(0, '#1e3a8a');    // 0%
+          gradient.addColorStop(0.20, '#2563eb'); // 20%
+          gradient.addColorStop(0.40, '#3b82f6'); // 40%
+          gradient.addColorStop(0.60, '#60a5fa'); // 60%
+          gradient.addColorStop(0.80, '#3b82f6'); // 80%
+          gradient.addColorStop(1, '#2563eb');    // 100%
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+        } else {
+          // Red frame with smooth gradient dari atas ke bawah
+          const gradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
+          gradient.addColorStop(0, '#7f1d1d');    // 0%
+          gradient.addColorStop(0.20, '#991b1b'); // 20%
+          gradient.addColorStop(0.40, '#dc2626'); // 40%
+          gradient.addColorStop(0.60, '#ef4444'); // 60%
+          gradient.addColorStop(0.80, '#dc2626'); // 80%
+          gradient.addColorStop(1, '#991b1b');    // 100%
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+        }
         
         // Load dan draw semua foto
         const loadImage = (src) => {
@@ -222,38 +235,46 @@ function App() {
         const totalContentWidth = (photoSize * cols) + (gap * (cols - 1));
         const offsetX = (canvasWidth - totalContentWidth) / 2;
         
+        // Posisi Y start untuk foto (setelah padding atas)
+        const photoStartY = padding;
+        
         // Draw foto dalam grid (1 kolom untuk 3 foto, 2 kolom untuk 4/6 foto)
         images.forEach((img, index) => {
           const col = isVertical ? 0 : (index % 2);
           const row = isVertical ? index : Math.floor(index / 2);
           
           const x = offsetX + (col * (photoSize + gap));
-          const y = borderWidth + padding + (row * (photoSize + gap));
+          const y = photoStartY + (row * (photoSize + gap));
           
-          // Background abu untuk slot foto
-          ctx.fillStyle = '#f0f0f0';
-          ctx.fillRect(x, y, photoSize, photoSize);
+          // Background abu untuk slot foto (tidak perlu karena sudah ada gradient)
+          // Langsung draw foto dengan border radius
+          ctx.save();
+          
+          // Create rounded rectangle clip path
+          const radius = 60; // Border radius scaled (12px * 5)
+          ctx.beginPath();
+          ctx.moveTo(x + radius, y);
+          ctx.lineTo(x + photoSize - radius, y);
+          ctx.quadraticCurveTo(x + photoSize, y, x + photoSize, y + radius);
+          ctx.lineTo(x + photoSize, y + photoSize - radius);
+          ctx.quadraticCurveTo(x + photoSize, y + photoSize, x + photoSize - radius, y + photoSize);
+          ctx.lineTo(x + radius, y + photoSize);
+          ctx.quadraticCurveTo(x, y + photoSize, x, y + photoSize - radius);
+          ctx.lineTo(x, y + radius);
+          ctx.quadraticCurveTo(x, y, x + radius, y);
+          ctx.closePath();
+          ctx.clip();
           
           // Draw foto
           ctx.drawImage(img, x, y, photoSize, photoSize);
+          ctx.restore();
         });
         
-        // Footer - hanya tanggal dan jam
-        const footerY = borderWidth + padding + (photoSize * rows) + (gap * (rows - 1)) + 40;
+        // Footer - hanya tanggal dan jam di center
+        const footerY = canvasHeight - padding - 80;
         
-        // Garis pemisah
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(borderWidth + padding + 20, footerY);
-        ctx.lineTo(canvasWidth - borderWidth - padding - 20, footerY);
-        ctx.stroke();
-        
-        // Date and time only
-        ctx.font = '24px Arial';
-        ctx.fillStyle = '#666666';
-        ctx.textAlign = 'center';
-        const dateStr = new Date().toLocaleString('id-ID', {
+        // Format tanggal dan jam
+        const dateTimeStr = new Date().toLocaleString('id-ID', {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
@@ -261,7 +282,12 @@ function App() {
           minute: '2-digit',
           hour12: false,
         });
-        ctx.fillText(dateStr, canvasWidth / 2, footerY + 50);
+        
+        // Draw datetime centered
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '45px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(dateTimeStr, canvasWidth / 2, footerY);
         
         return canvas.toDataURL('image/png', 1.0); // PNG dengan kualitas maksimal
       }));
@@ -363,7 +389,7 @@ function App() {
       console.error('Error in video generation:', error);
       setIsGeneratingVideo(false);
     }
-  }, []);
+  }, [frameStyle]);
 
   // Sesi foto untuk mode Video (3 sesi beruntun)
   const startGifSession = useCallback(async () => {
@@ -464,99 +490,122 @@ function App() {
   const downloadSingleStrip = useCallback(async (stripPhotos, stripNumber) => {
     if (stripPhotos.length === 0) return;
     
-    // Buat canvas manual untuk hasil yang konsisten
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-
-    if (!ctx) return;
-
-    // Instagram Story HD: 1080x1920 (9:16)
-    const canvasWidth = 1080;
-    const canvasHeight = 1920;
-    
-    // Ukuran yang lebih proporsional
-    const padding = 80;
-    const borderWidth = 20;
-    const footerHeight = 280; // Lebih besar untuk tulisan
-
-    // Tentukan layout berdasarkan jumlah foto
-    const isVertical = stripPhotos.length === 3; // 3 foto = 1 kolom vertikal
-    const cols = isVertical ? 1 : 2;
-    const rows = isVertical ? 3 : (stripPhotos.length === 4 ? 2 : 3);
-
-    // Hitung ukuran foto yang lebih kecil agar tidak terpotong
-    const availableWidth = canvasWidth - (padding * 2) - (borderWidth * 2);
-    const availableHeight = canvasHeight - (padding * 2) - (borderWidth * 2) - footerHeight;
-    
-    const gap = 24;
-    const photoSize = Math.floor(Math.min(
-      (availableWidth - (gap * (cols - 1))) / cols,
-      (availableHeight - (gap * (rows - 1))) / rows
-    ));
-
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
-
-    // Background putih
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-
-    // Border hitam
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-
-    // Area dalam putih
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(borderWidth, borderWidth, canvasWidth - (borderWidth * 2), canvasHeight - (borderWidth * 2));
-
-    // Load dan draw semua foto
-    const loadImage = (src) => {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = src;
+    try {
+      // Instagram Story size (1080x1920)
+      const storyWidth = 1080;
+      const storyHeight = 1920;
+      
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) return;
+      
+      canvas.width = storyWidth;
+      canvas.height = storyHeight;
+      
+      // Draw full story background gradient
+      if (frameStyle === 'blue') {
+        const gradient = ctx.createLinearGradient(0, 0, 0, storyHeight);
+        gradient.addColorStop(0, '#1e3a8a');
+        gradient.addColorStop(0.20, '#2563eb');
+        gradient.addColorStop(0.40, '#3b82f6');
+        gradient.addColorStop(0.60, '#60a5fa');
+        gradient.addColorStop(0.80, '#3b82f6');
+        gradient.addColorStop(1, '#2563eb');
+        ctx.fillStyle = gradient;
+      } else if (frameStyle === 'red') {
+        const gradient = ctx.createLinearGradient(0, 0, 0, storyHeight);
+        gradient.addColorStop(0, '#7f1d1d');
+        gradient.addColorStop(0.20, '#991b1b');
+        gradient.addColorStop(0.40, '#dc2626');
+        gradient.addColorStop(0.60, '#ef4444');
+        gradient.addColorStop(0.80, '#dc2626');
+        gradient.addColorStop(1, '#991b1b');
+        ctx.fillStyle = gradient;
+      } else if (frameStyle === 'white') {
+        const gradient = ctx.createLinearGradient(0, 0, 0, storyHeight);
+        gradient.addColorStop(0, '#e5e7eb');
+        gradient.addColorStop(0.20, '#e5e7eb');
+        gradient.addColorStop(0.40, '#f3f4f6');
+        gradient.addColorStop(0.60, '#f9fafb');
+        gradient.addColorStop(0.80, '#ffffff');
+        gradient.addColorStop(1, '#f3f4f6');
+        ctx.fillStyle = gradient;
+      }
+      ctx.fillRect(0, 0, storyWidth, storyHeight);
+      
+      // Calculate dimensions to fit within story height
+      const photoCount = stripPhotos.length;
+      
+      // Reserve space for padding and footer
+      const topBottomPadding = 100; // Total padding for top and bottom of strip
+      const footerHeight = 100; // Footer area
+      const gapBetweenPhotos = 40; // Gap between photos
+      
+      // Available height for all photos and gaps
+      const availableHeight = storyHeight - (topBottomPadding * 2) - footerHeight;
+      const totalGapHeight = gapBetweenPhotos * (photoCount - 1);
+      const availableForPhotos = availableHeight - totalGapHeight;
+      
+      // Calculate photo size (square) - whichever is smaller: width constraint or height constraint
+      const maxPhotoSizeFromHeight = availableForPhotos / photoCount;
+      const maxPhotoSizeFromWidth = storyWidth - (topBottomPadding * 2);
+      const photoSize = Math.min(maxPhotoSizeFromHeight, maxPhotoSizeFromWidth);
+      
+      // Calculate actual strip dimensions
+      const stripWidth = storyWidth;
+      const stripContentHeight = (photoSize * photoCount) + (totalGapHeight);
+      const stripHeight = stripContentHeight + footerHeight + (topBottomPadding * 2);
+      
+      // Center strip vertically
+      const stripY = (storyHeight - stripHeight) / 2;
+      const padding = (stripWidth - photoSize) / 2; // Center photos horizontally
+      const photoRadius = 12 * (photoSize / 310); // Scale radius proportionally
+      
+      // Load images
+      const loadImage = (src) => {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = src;
+        });
+      };
+      
+      const images = await Promise.all(stripPhotos.map(src => loadImage(src)));
+      
+      // Draw photos (centered)
+      let currentY = stripY + topBottomPadding;
+      
+      images.forEach((img) => {
+        const x = padding;
+        const y = currentY;
+        const size = photoSize;
+        
+        // Draw photo with rounded corners
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(x + photoRadius, y);
+        ctx.lineTo(x + size - photoRadius, y);
+        ctx.quadraticCurveTo(x + size, y, x + size, y + photoRadius);
+        ctx.lineTo(x + size, y + size - photoRadius);
+        ctx.quadraticCurveTo(x + size, y + size, x + size - photoRadius, y + size);
+        ctx.lineTo(x + photoRadius, y + size);
+        ctx.quadraticCurveTo(x, y + size, x, y + size - photoRadius);
+        ctx.lineTo(x, y + photoRadius);
+        ctx.quadraticCurveTo(x, y, x + photoRadius, y);
+        ctx.closePath();
+        ctx.clip();
+        
+        ctx.drawImage(img, x, y, size, size);
+        ctx.restore();
+        
+        currentY += photoSize + gapBetweenPhotos;
       });
-    };
-
-    const images = await Promise.all(stripPhotos.map(src => loadImage(src)));
-
-    // Hitung total width yang digunakan foto dan center secara horizontal
-    const totalContentWidth = (photoSize * cols) + (gap * (cols - 1));
-    const offsetX = (canvasWidth - totalContentWidth) / 2;
-
-    // Draw foto dalam grid (1 kolom untuk 3 foto, 2 kolom untuk 4/6 foto)
-    images.forEach((img, index) => {
-      const col = isVertical ? 0 : (index % 2);
-      const row = isVertical ? index : Math.floor(index / 2);
-
-      const x = offsetX + (col * (photoSize + gap));
-      const y = borderWidth + padding + (row * (photoSize + gap));
-
-      // Background abu untuk slot foto
-      ctx.fillStyle = '#f0f0f0';
-      ctx.fillRect(x, y, photoSize, photoSize);
-
-      // Draw foto - pastikan fill seluruh area
-      ctx.drawImage(img, x, y, photoSize, photoSize);
-    });
-
-      // Footer - hanya tanggal dan jam
-      const footerY = borderWidth + padding + (photoSize * rows) + (gap * (rows - 1)) + 40;
       
-      // Garis pemisah
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(borderWidth + padding + 20, footerY);
-      ctx.lineTo(canvasWidth - borderWidth - padding - 20, footerY);
-      ctx.stroke();
-      
-      // Date and time only
-      ctx.font = '24px Arial';
-      ctx.fillStyle = '#666666';
-      ctx.textAlign = 'center';
-      const dateStr = new Date().toLocaleString('id-ID', {
+      // Draw footer text (centered at bottom of strip)
+      const footerY = stripY + stripHeight - (footerHeight / 2);
+      const dateTimeStr = new Date().toLocaleString('id-ID', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -564,17 +613,25 @@ function App() {
         minute: '2-digit',
         hour12: false,
       });
-      ctx.fillText(dateStr, canvasWidth / 2, footerY + 50);
       
-    // Download
-    const link = document.createElement('a');
-    const filename = gifMode 
-      ? `photostrip-session${stripNumber}-${Date.now()}.png`
-      : `photostrip-${Date.now()}.png`;
-    link.download = filename;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-  }, [gifMode]);
+      ctx.fillStyle = frameStyle === 'white' ? '#1f2937' : '#ffffff';
+      ctx.font = `500 ${Math.round(photoSize / 310 * 14)}px Arial`; // Scale font with photo size
+      ctx.textAlign = 'center';
+      ctx.fillText(dateTimeStr, storyWidth / 2, footerY);
+      
+      // Download
+      const link = document.createElement('a');
+      const filename = gifMode 
+        ? `photostrip-session${stripNumber}-${Date.now()}.png`
+        : `photostrip-${Date.now()}.png`;
+      link.download = filename;
+      link.href = canvas.toDataURL('image/png', 1.0);
+      link.click();
+      
+    } catch (error) {
+      console.error('Error downloading strip:', error);
+    }
+  }, [gifMode, frameStyle]);
 
   // Download Video
   const downloadVideo = useCallback(() => {
@@ -618,6 +675,8 @@ function App() {
             isGeneratingVideo={isGeneratingVideo}
             onDownloadVideo={downloadVideo}
             allStrips={allStrips}
+            frameStyle={frameStyle}
+            setFrameStyle={setFrameStyle}
           />
 
           {/* Photo Strip Component */}
@@ -629,6 +688,7 @@ function App() {
             gifMode={gifMode}
             allStrips={allStrips}
             videoUrl={videoUrl}
+            frameStyle={frameStyle}
           />
         </div>
       </div>

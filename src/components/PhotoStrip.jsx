@@ -1,6 +1,6 @@
 import { forwardRef } from 'react';
 
-const PhotoStrip = forwardRef(({ photos, photoCount, livePreview, gifMode, allStrips, videoUrl }, ref) => {
+const PhotoStrip = forwardRef(({ photos, photoCount, livePreview, gifMode, allStrips, videoUrl, frameStyle }, ref) => {
   // Jika mode GIF dan ada strips, tampilkan semua strips + GIF preview
   if (gifMode && allStrips && allStrips.length > 0) {
     return (
@@ -11,7 +11,7 @@ const PhotoStrip = forwardRef(({ photos, photoCount, livePreview, gifMode, allSt
             <div key={stripIndex} className="photo-strip-wrapper">
               <h3 style={{ textAlign: 'center', marginBottom: '10px' }}>Session {stripIndex + 1}</h3>
               <div className="photo-strip">
-                <div className="strip-border">
+                <div className={`strip-border ${frameStyle === 'blue' ? 'frame-blue' : frameStyle === 'red' ? 'frame-red' : 'frame-white'}`}>
                   <div className={`photo-grid photo-grid-${strip.length}`}>
                     {strip.map((photo, photoIndex) => (
                       <div key={photoIndex} className="photo-slot">
@@ -23,9 +23,8 @@ const PhotoStrip = forwardRef(({ photos, photoCount, livePreview, gifMode, allSt
                     ))}
                   </div>
 
-                  <div className="strip-footer">
-
-                    <p className="strip-date">
+                  <div className={`strip-footer ${frameStyle === 'blue' ? 'footer-blue' : frameStyle === 'red' ? 'footer-red' : 'footer-white'}`}>
+                    <div className="footer-datetime">
                       {new Date().toLocaleString('id-ID', {
                         day: '2-digit',
                         month: '2-digit',
@@ -34,7 +33,7 @@ const PhotoStrip = forwardRef(({ photos, photoCount, livePreview, gifMode, allSt
                         minute: '2-digit',
                         hour12: false,
                       })}
-                    </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -58,42 +57,44 @@ const PhotoStrip = forwardRef(({ photos, photoCount, livePreview, gifMode, allSt
   // Mode normal: tampilkan single strip
   return (
     <div className="preview-section">
-      <div ref={ref} className="photo-strip">
-        <div className="strip-border">
-          <div className={`photo-grid photo-grid-${photoCount}`}>
-            {Array.from({ length: photoCount }).map((_, index) => (
-              <div key={index} className="photo-slot">
-                {photos[index] ? (
-                  <img
-                    src={photos[index]}
-                    alt={`Photo ${index + 1}`}
-                  />
-                ) : livePreview && index === photos.length ? (
-                  <img
-                    src={livePreview}
-                    alt="Live preview"
-                    className="live-preview"
-                  />
-                ) : (
-                  <div className="photo-placeholder">
-                    {index + 1}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+      <div className={`story-background ${frameStyle === 'blue' ? 'bg-blue' : frameStyle === 'red' ? 'bg-red' : 'bg-white'}`}>
+        <div ref={ref} className="photo-strip">
+          <div className={`strip-border ${frameStyle === 'blue' ? 'frame-blue' : frameStyle === 'red' ? 'frame-red' : 'frame-white'}`}>
+            <div className={`photo-grid photo-grid-${photoCount}`}>
+              {Array.from({ length: photoCount }).map((_, index) => (
+                <div key={index} className="photo-slot">
+                  {photos[index] ? (
+                    <img
+                      src={photos[index]}
+                      alt={`Photo ${index + 1}`}
+                    />
+                  ) : livePreview && index === photos.length ? (
+                    <img
+                      src={livePreview}
+                      alt="Live preview"
+                      className="live-preview"
+                    />
+                  ) : (
+                    <div className="photo-placeholder">
+                      {index + 1}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
 
-          <div className="strip-footer">
-            <p className="strip-date">
-              {new Date().toLocaleString('id-ID', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false,
-              })}
-            </p>
+            <div className={`strip-footer ${frameStyle === 'blue' ? 'footer-blue' : frameStyle === 'red' ? 'footer-red' : 'footer-white'}`}>
+              <div className="footer-datetime">
+                {new Date().toLocaleString('id-ID', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: false,
+                })}
+              </div>
+            </div>
           </div>
         </div>
       </div>
