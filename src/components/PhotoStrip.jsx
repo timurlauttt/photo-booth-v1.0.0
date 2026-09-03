@@ -376,12 +376,6 @@ const PhotoStrip = forwardRef(
                       className={`relative ${aspectClass} w-full rounded-md overflow-hidden border-2 border-slate-900 shadow-xs flex items-center justify-center`}
                     >
                       {renderSlotMedia(index)}
-
-                      <div className="absolute bottom-1 right-1 pointer-events-none">
-                        <span className="font-mono-retro text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-900/70 text-white backdrop-blur-xs">
-                          {frameStyle.type === "film" ? `0${index + 1}A` : `0${index + 1}`}
-                        </span>
-                      </div>
                     </div>
                   );
                 })}

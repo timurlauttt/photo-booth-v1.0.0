@@ -1103,25 +1103,6 @@ function App() {
           drawRoundRect(ctx, px, py, photoW, photoH, photoRadius);
           ctx.stroke();
         }
-
-        // Index Badge (Bottom Right)
-        const bW = Math.round(photoW * 0.16);
-        const bH = Math.round(photoH * 0.15);
-        const bx = px + photoW - bW - 6;
-        const by = py + photoH - bH - 6;
-
-        ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
-        drawRoundRect(ctx, bx, by, bW, bH, 4);
-        ctx.fill();
-
-        ctx.fillStyle = "#FFFFFF";
-        ctx.font = `bold ${Math.round(bH * 0.52)}px "IBM Plex Mono", monospace`;
-        ctx.textAlign = "center";
-        ctx.fillText(
-          frame.type === "film" ? `0${i + 1}A` : `0${i + 1}`,
-          bx + bW / 2,
-          by + Math.round(bH * 0.7),
-        );
       });
     }
 
