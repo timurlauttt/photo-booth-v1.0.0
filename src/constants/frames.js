@@ -198,62 +198,15 @@ export const FRAME_STYLES = [
   }
 ];
 
-// Pilihan Layout Photo Strip
+// Pilihan Layout Photo Strip (Mulai dari 2-wide, 3-vert, hingga 9-asym-film)
 export const LAYOUT_OPTIONS = [
   {
-    id: '9-asym-film',
-    name: 'Film Magazine (4+5)',
-    subtitle: 'Asymmetric 9-Frame',
-    count: 9,
-    cols: 2,
-    rows: 5,
-    type: 'asymmetric',
-    aspect: 'dynamic',
-  },
-  {
-    id: '5-asym-film',
-    name: 'Film Magazine (2+3)',
-    subtitle: 'Asymmetric 5-Frame',
-    count: 5,
-    cols: 2,
-    rows: 3,
-    type: 'asymmetric',
-    aspect: 'dynamic',
-  },
-  {
-    id: '3-cinema',
-    name: 'Cinema 3-Cut (16:9)',
-    subtitle: 'Widescreen Movie Strip',
-    count: 3,
+    id: '2-wide',
+    name: '2-Foto Wide',
+    subtitle: 'Duo Strip',
+    count: 2,
     cols: 1,
-    rows: 3,
-    aspect: '16/9',
-  },
-  {
-    id: '8-twin',
-    name: '4 x 2 Vertikal',
-    subtitle: 'Twin 8-Frame Strip',
-    count: 8,
-    cols: 2,
-    rows: 4,
-    aspect: '4/3',
-  },
-  {
-    id: '4-vert',
-    name: '4-Foto Vertikal',
-    subtitle: 'Classic 4-Cut Strip',
-    count: 4,
-    cols: 1,
-    rows: 4,
-    aspect: '4/3',
-  },
-  {
-    id: '6-double',
-    name: '3 x 2 Vertikal',
-    subtitle: 'Twin 6-Frame Strip',
-    count: 6,
-    cols: 2,
-    rows: 3,
+    rows: 2,
     aspect: '1/1',
   },
   {
@@ -266,6 +219,24 @@ export const LAYOUT_OPTIONS = [
     aspect: '1/1',
   },
   {
+    id: '3-cinema',
+    name: 'Cinema 3-Cut (16:9)',
+    subtitle: 'Widescreen Movie Strip',
+    count: 3,
+    cols: 1,
+    rows: 3,
+    aspect: '16/9',
+  },
+  {
+    id: '4-vert',
+    name: '4-Foto Vertikal',
+    subtitle: 'Classic 4-Cut Strip',
+    count: 4,
+    cols: 1,
+    rows: 4,
+    aspect: '4/3',
+  },
+  {
     id: '4-grid',
     name: '4-Grid Persegi',
     subtitle: '2x2 Quad Strip',
@@ -275,19 +246,51 @@ export const LAYOUT_OPTIONS = [
     aspect: '1/1',
   },
   {
-    id: '2-wide',
-    name: '2-Foto Wide',
-    subtitle: 'Duo Strip',
-    count: 2,
-    cols: 1,
-    rows: 2,
+    id: '5-asym-film',
+    name: 'Film Magazine (2+3)',
+    subtitle: 'Asymmetric 5-Frame',
+    count: 5,
+    cols: 2,
+    rows: 3,
+    type: 'asymmetric',
+    aspect: 'dynamic',
+  },
+  {
+    id: '6-double',
+    name: '3 x 2 Vertikal',
+    subtitle: 'Twin 6-Frame Strip',
+    count: 6,
+    cols: 2,
+    rows: 3,
     aspect: '1/1',
+  },
+  {
+    id: '8-twin',
+    name: '4 x 2 Vertikal',
+    subtitle: 'Twin 8-Frame Strip',
+    count: 8,
+    cols: 2,
+    rows: 4,
+    aspect: '4/3',
+  },
+  {
+    id: '9-asym-film',
+    name: 'Film Magazine (4+5)',
+    subtitle: 'Asymmetric 9-Frame',
+    count: 9,
+    cols: 2,
+    rows: 5,
+    type: 'asymmetric',
+    aspect: 'dynamic',
   },
 ];
 
 // Pilihan Filter Real-Time & Digicam Retro
 export const FILTER_OPTIONS = [
   { id: 'none', label: 'Normal', desc: 'Natural Crisp' },
+  { id: 'lores', label: 'Lo-Res Story', desc: 'Instagram Story Lo-Res' },
+  { id: 'goldenhour', label: 'Golden Hour', desc: 'Warm Sunset Glow' },
+  { id: 'anime', label: 'Anime Pastel', desc: 'Clean Japanese Film' },
   { id: 'digicam', label: 'Digicam 2000s', desc: 'Canon IXY CCD Sensor' },
   { id: 'cybershot', label: 'Sony Cybershot', desc: 'Cool Tone Y2K CCD' },
   { id: 'fujifilm', label: 'Fuji Chrome', desc: 'Velvia Film Simulation' },
@@ -296,21 +299,24 @@ export const FILTER_OPTIONS = [
   { id: 'fisheye', label: 'Fisheye Y2K', desc: 'Lensa Cembung Retro' },
   { id: 'softglow', label: 'Soft Dreamy', desc: 'Korean Film Bloom' },
   { id: 'warmfilm', label: 'Kodak Warm', desc: 'Golden 90s Film' },
-  { id: 'vintage', label: 'Vintage 90s', desc: 'Low-Res Pixelated' },
+  { id: 'vintage', label: 'Vintage 90s', desc: 'Low-Res Grain' },
   { id: 'grayscale', label: 'B&W Film', desc: 'Monochrome 90s' },
   { id: 'sepia', label: 'Warm Sepia', desc: 'Golden Nostalgia' },
   { id: 'cyber', label: 'Cyber Neo', desc: 'Futuristic Contrast' },
 ];
 
 // Pilihan Stiker / Cap Stamp Retro & Aesthetic Lucu
+// Stiker pertama/default adalah Kucing, selanjutnya Bebek, setelah itu bebas
 export const RETRO_STAMPS = [
   { id: 'none', label: 'Tanpa Stiker', sticker: '', icon: 'none', bgColor: '#FFFFFF', textColor: '#0F172A' },
 
+  // Default: Kucing pertama, Bebek kedua
+  { id: 'kitty', label: '🐱 KUCING', sticker: '🐱', icon: 'kitty', bgColor: '#FEF3C7', textColor: '#92400E' },
+  { id: 'duck', label: '🦆 BEBEK', sticker: '🦆', icon: 'duck', bgColor: '#FEF9C3', textColor: '#854D0E' },
+
   // Lucu & Cute Animals
   { id: 'bunny', label: '🐰 KELINCI', sticker: '🐰', icon: 'bunny', bgColor: '#FFE4E6', textColor: '#BE123C' },
-  { id: 'kitty', label: '🐱 KUCING', sticker: '🐱', icon: 'kitty', bgColor: '#FEF3C7', textColor: '#92400E' },
   { id: 'bear', label: '🐻 BERUANG', sticker: '🐻', icon: 'bear', bgColor: '#F5EBE0', textColor: '#78350F' },
-  { id: 'duck', label: '🦆 BEBEK', sticker: '🦆', icon: 'duck', bgColor: '#FEF9C3', textColor: '#854D0E' },
   { id: 'chick', label: '🐥 CHICK', sticker: '🐥', icon: 'chick', bgColor: '#FEF08A', textColor: '#713F12' },
   { id: 'panda', label: '🐼 PANDA', sticker: '🐼', icon: 'panda', bgColor: '#F1F5F9', textColor: '#0F172A' },
   { id: 'teddy', label: '🧸 BONEKA', sticker: '🧸', icon: 'teddy', bgColor: '#FDE68A', textColor: '#92400E' },
@@ -354,4 +360,31 @@ export const RETRO_STAMPS = [
   { id: 'limited', label: '🏷️ LABEL', sticker: '🏷️', icon: 'limited', bgColor: '#FEF08A', textColor: '#713F12' },
 ];
 
+// Pola & Tekstur Latar Belakang Frame
+export const FRAME_PATTERNS = [
+  { id: 'none', label: 'Polos', icon: 'square', desc: 'Warna solid bersih' },
+  { id: 'checkerboard', label: '🏁 Papan Catur', icon: 'grid', desc: 'Kotak-kotak retro Y2K' },
+  { id: 'polkadot', label: '⚪ Polkadot', icon: 'circle-dot', desc: 'Bintik-bintik manis' },
+  { id: 'stripes', label: '💈 Garis Strip', icon: 'align-justify', desc: 'Garis diagonal retro' },
+  { id: 'gridnotebook', label: '📐 Kertas Kotak', icon: 'layout-grid', desc: 'Grid buku tulis' },
+  { id: 'hearts', label: '💖 Hati', icon: 'heart', desc: 'Pola cinta aesthetic' },
+  { id: 'stars', label: '⭐ Bintang', icon: 'star', desc: 'Taburan bintang retro' },
+  { id: 'sparkles', label: '✦ Kilau Y2K', icon: 'sparkles', desc: 'Sparkle aesthetic 2000s' },
+  { id: 'clouds', label: '☁️ Awan Pastel', icon: 'cloud', desc: 'Awan manis dreamy' },
+  { id: 'halftone', label: '📰 Halftone Pop', icon: 'disc', desc: 'Titik cetak komik retro' },
+  { id: 'filmgrain', label: '🎞️ Film Grain', icon: 'film', desc: 'Tekstur analog vintage' },
+];
 
+// Pilihan Gaya Font Caption
+export const CAPTION_FONTS = [
+  { id: 'mono', label: 'Mono Retro', family: "'IBM Plex Mono', monospace", desc: 'Font monospace klasik' },
+  { id: 'digital', label: 'LED Digital', family: "'VT323', monospace", desc: 'Jam digital 7-segment' },
+  { id: 'typewriter', label: 'Mesin Tik', family: "'Special Elite', cursive", desc: 'Mesin tik jadul' },
+  { id: 'cursive', label: 'Tulis Tangan', family: "'Caveat', cursive", desc: 'Tulisan buku harian' },
+  { id: 'bubble', label: 'Bubble Y2K', family: "'Fredoka', sans-serif", desc: 'Huruf bulat imut' },
+  { id: 'pixel', label: 'Arcade 8-Bit', family: "'Press Start 2P', cursive", desc: 'Game retro pixel' },
+  { id: 'serif', label: 'Editorial Serif', family: "'Playfair Display', serif", desc: 'Majalah fashion mewah' },
+  { id: 'marker', label: 'Spidol Tebal', family: "'Permanent Marker', cursive", desc: 'Marker graffiti pop-punk' },
+  { id: 'korean', label: 'Doodle Imut', family: "'Gaegu', cursive", desc: 'Coretan imut K-Photobooth' },
+  { id: 'brutal', label: 'Neo-Brutal', family: "'Rubik Mono One', sans-serif", desc: 'Blok ultra-bold tegas' },
+];

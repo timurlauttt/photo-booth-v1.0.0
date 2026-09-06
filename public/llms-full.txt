@@ -1,0 +1,45 @@
+# PHOTOBOOTH by timurlauttt — Complete Specification
+
+> Complete documentation and architectural overview for PHOTOBOOTH Web Studio.
+
+## Architecture
+- Framework: React 18 + Vite
+- Styling: Tailwind CSS + Tactile Neo-Brutalist design system
+- Video Processing: WebCodecs API (VideoEncoder H.264 Baseline Profile 3.1) + mp4-muxer client-side packaging
+- Audio Processing: Web Audio API synthesis (shutter sound, motor print audio, countdown beeps)
+- Image Processing: HTML5 Canvas 2D Context with custom pixel shaders and matrix transformations
+- Privacy: 100% Client-Side. Zero server dependencies, zero external analytics, zero tracking cookies.
+
+## Capabilities
+1. Frame Layouts:
+   - 2-Wide Duo Strip
+   - 3-Vertical Strip
+   - Cinema 3-Cut (16:9)
+   - 4-Vertical Life Four Cuts
+   - 4-Grid Quad
+   - 5-Asymmetric Film Magazine (2+3)
+   - 6-Double Twin Strip
+   - 8-Twin Contact Sheet
+   - 9-Asymmetric Film Magazine (4+5)
+2. Retro Filters:
+   - Normal Natural Crisp
+   - Lo-Res Story (Instagram Story Y2K Camphone)
+   - Golden Hour (Warm Sunset Glow)
+   - Anime Pastel (Clean Japanese Film)
+   - Digicam 2000s (Canon IXY CCD Sensor)
+   - Sony Cybershot (Cool Tone Y2K CCD)
+   - Fuji Chrome (Velvia Film Simulation)
+   - Party Flash (Direct Flash Aesthetic)
+   - Olympus Camedia (Early 2000s Retro Digi)
+   - Fisheye Y2K (Lensa Cembung Retro)
+   - Soft Dreamy (Korean Film Bloom)
+   - Kodak Warm (Golden 90s Film)
+   - Vintage 90s (Low-Res Grain)
+   - B&W Film (Monochrome 90s)
+   - Warm Sepia (Golden Nostalgia)
+   - Cyber Neo (Futuristic Contrast)
+3. Customization:
+   - Frame Patterns: Polos, Checkerboard, Polkadot, Garis Strip, Kertas Kotak, Hearts, Stars, Kilau Y2K, Awan Pastel, Halftone Pop, Film Grain
+   - Caption Fonts: Mono Retro, LED Digital, Mesin Tik, Tulis Tangan, Bubble Y2K, Arcade 8-Bit, Editorial Serif, Spidol Tebal, Doodle Imut, Neo-Brutal
+   - Interactive Stickers: Drag & drop, scaling, rotation
+   - Virtual Screen Ring Light & Flash illumination

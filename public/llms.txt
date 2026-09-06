@@ -1,0 +1,16 @@
+# PHOTOBOOTH by timurlauttt
+
+> A 100% client-side, privacy-first Neo-Brutalist Photobooth Web Studio.
+
+PHOTOBOOTH is a modern client-side retro photobooth application running entirely inside the user's browser. It captures photo strips and 10-second video strips with retro webcam filters (Digicam, Cyber-shot, Lo-Res Story, Fujifilm, Golden Hour), custom neo-brutalist frames, customizable fonts, drag-and-drop stickers, and screen ring light lighting.
+
+## Core Features
+- [Photobooth Studio](https://photobooth.pangestudev.web.id/): Full web photobooth interface with live camera viewfinder
+- [Photo Strip Creator](https://photobooth.pangestudev.web.id/): Layouts from 2-wide duo strips to 9-film magazine contact sheets
+- [Video Strip MP4 Generator](https://photobooth.pangestudev.web.id/): Client-side hardware-accelerated H.264 MP4 export using WebCodecs
+
+## Privacy Architecture
+- [Privacy Guarantee](https://photobooth.pangestudev.web.id/): 100% local in-browser processing with zero server uploads and zero tracking cookies
+
+## Optional
+- [Full Documentation](https://photobooth.pangestudev.web.id/llms-full.txt): Complete feature overview and technical stack specifications

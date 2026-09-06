@@ -15,10 +15,6 @@
   border-radius: 4px;
 }
 
-.dark ::-webkit-scrollbar-thumb {
-  background: #334155;
-}
-
 /* Ensure images don't get dragged */
 img {
   -webkit-user-drag: none;
