@@ -1,4 +1,4 @@
-# PHOTOBOOTH by timurlauttt
+# PHOTOBOOTH by pangestudev
 
 > A 100% client-side, privacy-first Neo-Brutalist Photobooth Web Studio.
 

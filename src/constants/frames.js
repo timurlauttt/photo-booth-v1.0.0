@@ -288,6 +288,8 @@ export const LAYOUT_OPTIONS = [
 // Pilihan Filter Real-Time & Digicam Retro
 export const FILTER_OPTIONS = [
   { id: 'none', label: 'Normal', desc: 'Natural Crisp' },
+  { id: 'lightleak', label: 'Light Leak 35mm', desc: 'Analog Warm Film Flare' },
+  { id: 'filmgrain', label: 'Film Grain 800', desc: 'Retro 35mm Textured Noise' },
   { id: 'lores', label: 'Lo-Res Story', desc: 'Instagram Story Lo-Res' },
   { id: 'goldenhour', label: 'Golden Hour', desc: 'Warm Sunset Glow' },
   { id: 'anime', label: 'Anime Pastel', desc: 'Clean Japanese Film' },
@@ -363,16 +365,16 @@ export const RETRO_STAMPS = [
 // Pola & Tekstur Latar Belakang Frame
 export const FRAME_PATTERNS = [
   { id: 'none', label: 'Polos', icon: 'square', desc: 'Warna solid bersih' },
-  { id: 'checkerboard', label: '🏁 Papan Catur', icon: 'grid', desc: 'Kotak-kotak retro Y2K' },
-  { id: 'polkadot', label: '⚪ Polkadot', icon: 'circle-dot', desc: 'Bintik-bintik manis' },
-  { id: 'stripes', label: '💈 Garis Strip', icon: 'align-justify', desc: 'Garis diagonal retro' },
-  { id: 'gridnotebook', label: '📐 Kertas Kotak', icon: 'layout-grid', desc: 'Grid buku tulis' },
-  { id: 'hearts', label: '💖 Hati', icon: 'heart', desc: 'Pola cinta aesthetic' },
-  { id: 'stars', label: '⭐ Bintang', icon: 'star', desc: 'Taburan bintang retro' },
-  { id: 'sparkles', label: '✦ Kilau Y2K', icon: 'sparkles', desc: 'Sparkle aesthetic 2000s' },
-  { id: 'clouds', label: '☁️ Awan Pastel', icon: 'cloud', desc: 'Awan manis dreamy' },
-  { id: 'halftone', label: '📰 Halftone Pop', icon: 'disc', desc: 'Titik cetak komik retro' },
-  { id: 'filmgrain', label: '🎞️ Film Grain', icon: 'film', desc: 'Tekstur analog vintage' },
+  { id: 'checkerboard', label: 'Papan Catur', icon: 'grid', desc: 'Kotak-kotak retro Y2K' },
+  { id: 'polkadot', label: 'Polkadot', icon: 'circle-dot', desc: 'Bintik-bintik manis' },
+  { id: 'stripes', label: 'Garis Strip', icon: 'align-justify', desc: 'Garis diagonal retro' },
+  { id: 'gridnotebook', label: 'Kertas Kotak', icon: 'layout-grid', desc: 'Grid buku tulis' },
+  { id: 'hearts', label: 'Hati', icon: 'heart', desc: 'Pola cinta aesthetic' },
+  { id: 'stars', label: 'Bintang', icon: 'star', desc: 'Taburan bintang retro' },
+  { id: 'sparkles', label: 'Kilau Y2K', icon: 'sparkles', desc: 'Sparkle aesthetic 2000s' },
+  { id: 'clouds', label: 'Awan Pastel', icon: 'cloud', desc: 'Awan manis dreamy' },
+  { id: 'halftone', label: 'Halftone Pop', icon: 'disc', desc: 'Titik cetak komik retro' },
+  { id: 'filmgrain', label: 'Film Grain', icon: 'film', desc: 'Tekstur analog vintage' },
 ];
 
 // Pilihan Gaya Font Caption

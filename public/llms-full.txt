@@ -1,4 +1,4 @@
-# PHOTOBOOTH by timurlauttt — Complete Specification
+# PHOTOBOOTH by pangestudev — Complete Specification
 
 > Complete documentation and architectural overview for PHOTOBOOTH Web Studio.
 

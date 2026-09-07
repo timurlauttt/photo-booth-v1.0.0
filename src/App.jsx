@@ -2,12 +2,15 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import WebcamComponent from "./components/Webcam";
 import PhotoStrip from "./components/PhotoStrip";
 import PrivacyBadge from "./components/PrivacyBadge";
+import DeveloperBadge from "./components/DeveloperBadge";
+import GuideModal from "./components/GuideModal";
 import SessionGallery from "./components/SessionGallery";
 import {
   FRAME_STYLES,
   LAYOUT_OPTIONS,
   FILTER_OPTIONS,
   RETRO_STAMPS,
+  CAPTION_FONTS,
 } from "./constants/frames";
 import {
   Camera,
@@ -18,9 +21,21 @@ import {
   VolumeX,
   History,
   Layers,
+  Minimize,
 } from "lucide-react";
 import { playPrintSound } from "./utils/audio";
+import { GIFEncoder, quantize } from "gifenc";
+import { applyPaletteWithDither } from "./utils/dither";
+import { getGestureRecognizer, checkOpenPalm } from "./utils/gestureRecognizer";
 import "./App.css";
+
+const getDefaultDateStamp = () => {
+  const d = new Date();
+  const yy = String(d.getFullYear()).slice(-2);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `'${yy} ${mm} ${dd}`;
+};
 
 function App() {
   const webcamRef = useRef(null);
@@ -75,6 +90,7 @@ function App() {
   const [videoRecordProgress, setVideoRecordProgress] = useState(0); // 0 to 10 seconds
   const stopVideoRecordingRef = useRef(null);
   const sessionCancelledRef = useRef(false);
+  const lastGestureTriggerTimeRef = useRef(0);
 
   const [photos, setPhotos] = useState([]);
   const [rawPhotos, setRawPhotos] = useState([]);
@@ -83,6 +99,8 @@ function App() {
   const [isFlashing, setIsFlashing] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloadingVideo, setIsDownloadingVideo] = useState(false);
+  const [isDownloadingGif, setIsDownloadingGif] = useState(false);
+  const [isDownloadingStopMotion, setIsDownloadingStopMotion] = useState(false);
   const [exportFormat, setExportFormat] = useState("story"); // 'story' (Instagram Story 9:16) or 'strip' (Strip Pas)
   const [livePreview, setLivePreview] = useState(null);
   const [activeTab, setActiveTab] = useState("layout");
@@ -102,6 +120,20 @@ function App() {
   const [isRingLightOn, setIsRingLightOn] = useState(false);
   const [ringLightColor, setRingLightColor] = useState("white"); // 'white' | 'warm' | 'rose'
   const [placedStickers, setPlacedStickers] = useState([]); // Array of { id, sticker, x, y, scale, rotation }
+
+  // Hands-Free Gesture Recognition (5 Jari / Open Palm)
+  const [isGestureEnabled, setIsGestureEnabled] = useState(false);
+  const [isGestureDetected, setIsGestureDetected] = useState(false);
+
+  // Retake Specific Pose Slot
+  const [retakeIndex, setRetakeIndex] = useState(null);
+
+  // Vintage Digicam Orange Quartz Date Stamp
+  const [showDateStamp, setShowDateStamp] = useState(false);
+  const [dateStampText, setDateStampText] = useState(getDefaultDateStamp());
+
+  // Kiosk / Fullscreen Mode
+  const [isKioskMode, setIsKioskMode] = useState(false);
 
   const handleAddPlacedSticker = useCallback((stickerChar) => {
     if (!stickerChar) return;
@@ -500,9 +532,63 @@ function App() {
               data[i + 2] = Math.min(255, b * 0.88 + 4);
             }
             ctx.putImageData(imageData, 0, 0);
+          } else if (filterType === "lightleak") {
+            // 35mm Analog Light Leak: Warm color curve + corner flare
+            const imageData = ctx.getImageData(0, 0, size, size);
+            const data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+              let r = data[i];
+              let g = data[i + 1];
+              let b = data[i + 2];
+              r = Math.min(255, r * 1.15 + 14);
+              g = Math.min(255, g * 1.05 + 6);
+              b = Math.max(0, b * 0.92 - 2);
+              data[i] = r;
+              data[i + 1] = g;
+              data[i + 2] = b;
+            }
+            ctx.putImageData(imageData, 0, 0);
+
+            // Diagonal warm light leak flare
+            ctx.save();
+            ctx.globalCompositeOperation = "screen";
+            const leak = ctx.createRadialGradient(0, 0, 10, size * 0.35, size * 0.35, size * 0.85);
+            leak.addColorStop(0, "rgba(255, 120, 40, 0.65)");
+            leak.addColorStop(0.3, "rgba(255, 175, 60, 0.4)");
+            leak.addColorStop(0.65, "rgba(255, 100, 120, 0.18)");
+            leak.addColorStop(1, "rgba(255, 180, 50, 0)");
+            ctx.fillStyle = leak;
+            ctx.fillRect(0, 0, size, size);
+            ctx.restore();
+          } else if (filterType === "filmgrain") {
+            // Authentic 35mm High-ISO Grain: Warm film tone + analog noise
+            const imageData = ctx.getImageData(0, 0, size, size);
+            const data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+              let r = data[i];
+              let g = data[i + 1];
+              let b = data[i + 2];
+              r = (r - 128) * 1.12 + 128 + 8;
+              g = (g - 128) * 1.08 + 128 + 4;
+              b = (b - 128) * 1.04 + 128 - 2;
+
+              const grain = (Math.random() - 0.5) * 32;
+              r += grain;
+              g += grain * 0.9;
+              b += grain * 0.8;
+
+              data[i] = Math.max(0, Math.min(255, r));
+              data[i + 1] = Math.max(0, Math.min(255, g));
+              data[i + 2] = Math.max(0, Math.min(255, b));
+            }
+            ctx.putImageData(imageData, 0, 0);
           }
 
-          resolve(canvas.toDataURL("image/jpeg", 0.95));
+          if (filterType === "none") {
+            resolve(canvas.toDataURL("image/png"));
+          } else {
+            resolve(canvas.toDataURL("image/jpeg", 0.98));
+          }
         }
       };
       img.src = imageSrc;
@@ -713,11 +799,169 @@ function App() {
     setCountdown(null);
     setIsCapturing(false);
     setIsRecordingVideo(false);
+    lastGestureTriggerTimeRef.current = Date.now();
     // Auto-switch to strip preview on mobile upon session completion
     if (needed > 0) {
       setMobileTab("strip");
     }
   }, [activeLayout.count, captureMode, recordVideoSlot, capturePhoto, revokeOldVideoClips, timerDuration]);
+
+  // Retake a specific pose slot without affecting other photos
+  const startRetakePose = useCallback(
+    async (targetIndex) => {
+      if (isCapturing || targetIndex === null) return;
+      sessionCancelledRef.current = false;
+      setIsCapturing(true);
+      setMobileTab("camera");
+
+      // User-configurable countdown
+      for (let c = timerDuration; c > 0; c--) {
+        if (sessionCancelledRef.current) break;
+        setCountdown(c);
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+
+      if (sessionCancelledRef.current) {
+        setCountdown(null);
+        setIsCapturing(false);
+        return;
+      }
+
+      setCountdown(null);
+
+      if (captureMode === "video") {
+        const clipUrl = await recordVideoSlot();
+        if (clipUrl) {
+          setVideoClips((prev) => {
+            const next = [...prev];
+            if (next[targetIndex]) {
+              try {
+                URL.revokeObjectURL(next[targetIndex]);
+              } catch {}
+            }
+            next[targetIndex] = clipUrl;
+            return next;
+          });
+        }
+      } else {
+        setIsFlashing(true);
+        setTimeout(() => setIsFlashing(false), 250);
+
+        const imageSrc = webcamRef.current?.getScreenshot();
+        if (imageSrc) {
+          const processed = await applyFilter(imageSrc, filter, isMirrored);
+          setPhotos((prev) => {
+            const next = [...prev];
+            next[targetIndex] = processed;
+            return next;
+          });
+          setRawPhotos((prev) => {
+            const next = [...prev];
+            next[targetIndex] = imageSrc;
+            return next;
+          });
+        }
+      }
+
+      setRetakeIndex(null);
+      setIsCapturing(false);
+      setIsRecordingVideo(false);
+      lastGestureTriggerTimeRef.current = Date.now();
+      setMobileTab("strip");
+    },
+    [isCapturing, timerDuration, captureMode, recordVideoSlot, applyFilter, filter, isMirrored]
+  );
+
+  // Hands-Free Gesture Recognition Loop (Open Palm / 5 Jari)
+  useEffect(() => {
+    if (!isGestureEnabled) {
+      setIsGestureDetected(false);
+      return;
+    }
+
+    let isMounted = true;
+    let consecutiveCount = 0;
+
+    const gestureInterval = setInterval(async () => {
+      // Do not trigger if session is already complete and user is viewing the photo strip
+      const isSessionComplete = photos.length >= activeLayout.count && retakeIndex === null;
+      if (!isMounted || !isGestureEnabled || isCapturing || isSessionComplete) {
+        if (isGestureDetected) setIsGestureDetected(false);
+        consecutiveCount = 0;
+        return;
+      }
+
+      // 4.5-second cooldown between gesture triggers
+      if (Date.now() - lastGestureTriggerTimeRef.current < 4500) {
+        return;
+      }
+
+      try {
+        const recognizer = await getGestureRecognizer();
+        const video = webcamRef.current?.video;
+        if (!recognizer || !video || video.readyState < 2 || video.videoWidth === 0) return;
+
+        const result = checkOpenPalm(recognizer, video, performance.now());
+        if (result.isOpenPalm) {
+          consecutiveCount++;
+          // Show HUD feedback after holding gesture for ~360ms
+          if (consecutiveCount >= 3) {
+            setIsGestureDetected(true);
+          }
+          // Trigger after 5 consecutive confirmed frames (~600ms sustained hold)
+          if (consecutiveCount >= 5) {
+            consecutiveCount = 0;
+            setIsGestureDetected(false);
+            lastGestureTriggerTimeRef.current = Date.now();
+            if (retakeIndex !== null) {
+              startRetakePose(retakeIndex);
+            } else {
+              startPhotoSession();
+            }
+          }
+        } else {
+          // Decay count so single-frame jitter doesn't cause false positives
+          consecutiveCount = Math.max(0, consecutiveCount - 1);
+          if (consecutiveCount === 0) {
+            setIsGestureDetected(false);
+          }
+        }
+      } catch (err) {
+        console.warn("Gesture check error:", err);
+      }
+    }, 120);
+
+    return () => {
+      isMounted = false;
+      clearInterval(gestureInterval);
+      setIsGestureDetected(false);
+    };
+  }, [isGestureEnabled, isCapturing, photos.length, activeLayout.count, retakeIndex, startRetakePose, startPhotoSession]);
+
+  // Kiosk / Fullscreen Mode handler
+  const handleToggleKiosk = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.warn("Fullscreen request error:", err);
+      });
+      setIsKioskMode(true);
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+      setIsKioskMode(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsKioskMode(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
 
   // Reset Session
   const resetSession = useCallback(() => {
@@ -766,6 +1010,7 @@ function App() {
     radius = 0,
     filterStr = "none",
     mirrorVideo = false,
+    filterName = "none",
   ) => {
     const imgW = img.naturalWidth || img.videoWidth || img.width;
     const imgH = img.naturalHeight || img.videoHeight || img.height;
@@ -796,20 +1041,42 @@ function App() {
       drawRoundRect(ctx, dx, dy, dWidth, dHeight, radius);
       ctx.clip();
     }
-    if (filterStr && filterStr !== "none") {
-      ctx.filter = filterStr;
-    }
+    ctx.filter = filterStr && filterStr !== "none" ? filterStr : "none";
     if (mirrorVideo) {
       ctx.translate(dx * 2 + dWidth, 0);
       ctx.scale(-1, 1);
     }
     ctx.drawImage(img, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
+
+    // Analog light leak flare overlay (only when explicitly requested via filterName)
+    if (filterName === "lightleak") {
+      ctx.globalCompositeOperation = "screen";
+      const leak = ctx.createRadialGradient(
+        dx,
+        dy,
+        10,
+        dx + dWidth * 0.35,
+        dy + dHeight * 0.35,
+        dWidth * 0.85,
+      );
+      leak.addColorStop(0, "rgba(255, 120, 40, 0.65)");
+      leak.addColorStop(0.3, "rgba(255, 175, 60, 0.4)");
+      leak.addColorStop(0.65, "rgba(255, 100, 120, 0.18)");
+      leak.addColorStop(1, "rgba(255, 180, 50, 0)");
+      ctx.fillStyle = leak;
+      ctx.fillRect(dx, dy, dWidth, dHeight);
+    }
+
     ctx.restore();
   };
 
   // Canvas filter CSS string mapping
   const getCanvasFilter = (f) => {
     switch (f) {
+      case "lightleak":
+        return "contrast(115%) brightness(108%) saturate(125%) sepia(18%)";
+      case "filmgrain":
+        return "contrast(116%) brightness(104%) saturate(110%) sepia(15%)";
       case "lores":
       case "pixelated":
         return "contrast(125%) brightness(110%) saturate(125%)";
@@ -862,10 +1129,34 @@ function App() {
     pattern = "none",
     fontId = "mono",
     stickersList = [],
+    showOrangeDateStamp = false,
+    orangeDateStampText = "",
   ) => {
     // 0. Clean Pure White Background (#FFFFFF)
     ctx.fillStyle = "#FFFFFF";
     ctx.fillRect(0, 0, canvasW, canvasH);
+
+    // Vintage Digicam Orange Quartz Date Stamp renderer
+    const drawRetroDateStamp = (targetCtx, px, py, pw, ph) => {
+      const stampStr = orangeDateStampText || getDefaultDateStamp();
+      targetCtx.save();
+      const fontSize = Math.max(12, Math.round(ph * 0.085));
+      targetCtx.font = `bold ${fontSize}px "VT323", "IBM Plex Mono", monospace`;
+      targetCtx.textAlign = "right";
+      targetCtx.textBaseline = "bottom";
+      const mx = Math.max(6, Math.round(pw * 0.04));
+      const my = Math.max(5, Math.round(ph * 0.045));
+
+      targetCtx.shadowColor = "#FF3700";
+      targetCtx.shadowBlur = Math.max(4, Math.round(fontSize * 0.45));
+      targetCtx.fillStyle = "#FF7A00";
+      targetCtx.fillText(stampStr, px + pw - mx, py + ph - my);
+
+      targetCtx.shadowBlur = 0;
+      targetCtx.fillStyle = "#FFA726";
+      targetCtx.fillText(stampStr, px + pw - mx, py + ph - my);
+      targetCtx.restore();
+    };
 
     let cardW;
     const shadowOffset = isStoryMode
@@ -909,23 +1200,28 @@ function App() {
     const cols = layout.cols;
     const rows = layout.rows;
 
-    let photoW, photoH, totalGridH, spineW, colW, leftPhotoH, rightPhotoH, leftMarginW, rightMarginW;
+    let photoW, photoH, totalGridH, spineW, colW, leftPhotoH, rightPhotoH, leftMarginW, rightMarginW, leftColW, rightColW, unitH, heroH;
 
     if (layout.id === "9-asym-film") {
       leftMarginW = Math.round(cardW * 0.04);
       rightMarginW = Math.round(cardW * 0.04);
       spineW = Math.round(cardW * 0.045);
-      colW = Math.floor((contentW - leftMarginW - rightMarginW - spineW - gap * 2) / 2);
-      rightPhotoH = Math.round(colW * 0.68);
-      totalGridH = 5 * rightPhotoH + 4 * gap;
-      leftPhotoH = Math.floor((totalGridH - 3 * gap) / 4);
-      photoW = colW;
-      photoH = rightPhotoH;
+      const availColW = contentW - leftMarginW - rightMarginW - spineW - gap * 2;
+      leftColW = Math.round(availColW * 0.58);
+      rightColW = availColW - leftColW;
+      unitH = Math.round(rightColW * 0.72);
+      heroH = 2 * unitH + gap;
+      totalGridH = 5 * unitH + 4 * gap;
+      colW = leftColW;
+      photoW = leftColW;
+      photoH = unitH;
     } else if (layout.id === "5-asym-film") {
       leftMarginW = Math.round(cardW * 0.04);
       rightMarginW = Math.round(cardW * 0.04);
       spineW = Math.round(cardW * 0.045);
       colW = Math.floor((contentW - leftMarginW - rightMarginW - spineW - gap * 2) / 2);
+      leftColW = colW;
+      rightColW = colW;
       rightPhotoH = Math.round(colW * 0.9); // 3 squarish photos on right
       totalGridH = 3 * rightPhotoH + 2 * gap;
       leftPhotoH = Math.floor((totalGridH - gap) / 2); // 2 tall photos on left
@@ -1237,12 +1533,11 @@ function App() {
 
     if (layout.id === "9-asym-film" || layout.id === "5-asym-film") {
       const is5asym = layout.id === "5-asym-film";
-      const leftCount = is5asym ? 2 : 4;
-      const rightCount = is5asym ? 3 : 5;
+      const is9asym = layout.id === "9-asym-film";
       const leftColX = contentX + leftMarginW;
-      const spineX = leftColX + colW + gap;
+      const spineX = leftColX + leftColW + gap;
       const rightColX = spineX + spineW + gap;
-      const rightMarginX = rightColX + colW + gap;
+      const rightMarginX = rightColX + rightColW + gap;
       const photoRadius = Math.max(2, Math.round(colW * 0.01));
 
       // 1. Left Film Margin text
@@ -1252,8 +1547,8 @@ function App() {
       ctx.textAlign = "center";
       const leftMarks = is5asym
         ? ["← 1 A", "← 2"]
-        : ["← 1 A", "← 2", "← 2 A", "← 3"];
-      const leftMarkStep = is5asym ? 0.4 : 0.25;
+        : ["← COVER", "← 02 A", "← 03 A", "← 04 A"];
+      const leftMarkStep = is5asym ? 0.4 : 0.23;
       leftMarks.forEach((txt, idx) => {
         ctx.save();
         ctx.translate(contentX + leftMarginW / 2, gridTop + totalGridH * (0.18 + idx * leftMarkStep));
@@ -1283,11 +1578,11 @@ function App() {
           { text: "→ 2", yRatio: 0.92 },
         ]
         : [
-          { text: "FILM NEGATIVE", yRatio: 0.12 },
-          { text: "→ 1 A", yRatio: 0.28 },
-          { text: "FILM NEGATIVE", yRatio: 0.48 },
-          { text: "→ 2", yRatio: 0.68 },
-          { text: "FILM NEGATIVE", yRatio: 0.88 },
+          { text: "35MM NEGATIVE", yRatio: 0.12 },
+          { text: "→ 01 A", yRatio: 0.32 },
+          { text: "CONTACT SHEET", yRatio: 0.52 },
+          { text: "→ 02", yRatio: 0.72 },
+          { text: "FILM NEGATIVE", yRatio: 0.90 },
         ];
 
       spineSegments.forEach((seg) => {
@@ -1306,7 +1601,7 @@ function App() {
       ctx.textAlign = "center";
       const rightMarginLabels = is5asym
         ? ["FILM NEGATIVE"]
-        : ["FILM NEGATIVE", "FILM NEGATIVE"];
+        : ["35MM FILM", "KODAK 400"];
       const rightMarginStep = is5asym ? 0 : 0.4;
       rightMarginLabels.forEach((txt, idx) => {
         ctx.save();
@@ -1317,60 +1612,178 @@ function App() {
       });
       ctx.restore();
 
-      // Draw Left Column: 2 or 4 photos
-      for (let i = 0; i < leftCount; i++) {
-        const img = loadedImages[i];
-        if (!img) continue;
-        const px = leftColX;
-        const py = gridTop + i * (leftPhotoH + gap);
+      if (is9asym) {
+        // --- 9-ASYM-FILM: Asymmetric Magazine (1 Hero 2x + 3 sub on Left, 5 cuts on Right) ---
+        // Slot 0: Big Hero Feature Photo
+        const heroImg = loadedImages[0];
+        if (heroImg) {
+          const px = leftColX;
+          const py = gridTop;
+          const isVideo = heroImg instanceof HTMLVideoElement;
+          const filterStr = isVideo ? getCanvasFilter(activeFilter) : "none";
+          drawCoverImage(ctx, heroImg, px, py, leftColW, heroH, photoRadius, filterStr, isVideo && isMirrored);
 
-        const isVideo = img instanceof HTMLVideoElement;
-        const filterStr = isVideo ? getCanvasFilter(activeFilter) : "none";
-        drawCoverImage(ctx, img, px, py, colW, leftPhotoH, photoRadius, filterStr, isVideo && isMirrored);
+          ctx.strokeStyle = "#27272A";
+          ctx.lineWidth = Math.max(1.5, Math.round(cardW * 0.004));
+          drawRoundRect(ctx, px, py, leftColW, heroH, photoRadius);
+          ctx.stroke();
 
-        ctx.strokeStyle = "#27272A";
-        ctx.lineWidth = Math.max(1.5, Math.round(cardW * 0.004));
-        drawRoundRect(ctx, px, py, colW, leftPhotoH, photoRadius);
-        ctx.stroke();
+          // Top Feature Badge
+          const featW = Math.round(leftColW * 0.32);
+          const featH = Math.max(14, Math.round(heroH * 0.065));
+          ctx.fillStyle = "#F59E0B";
+          drawRoundRect(ctx, px + 5, py + 5, featW, featH, 2);
+          ctx.fill();
+          ctx.fillStyle = "#0F172A";
+          ctx.font = `bold ${Math.round(featH * 0.65)}px "IBM Plex Mono", monospace`;
+          ctx.textAlign = "center";
+          ctx.fillText("★ FEATURE", px + 5 + featW / 2, py + 5 + featH * 0.72);
 
-        // Badge
-        const bW = Math.round(colW * 0.22);
-        const bH = Math.round(leftPhotoH * 0.12);
-        ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
-        drawRoundRect(ctx, px + colW - bW - 3, py + leftPhotoH - bH - 3, bW, bH, 2);
-        ctx.fill();
-        ctx.fillStyle = "#F59E0B";
-        ctx.font = `bold ${Math.round(bH * 0.65)}px "IBM Plex Mono", monospace`;
-        ctx.textAlign = "center";
-        ctx.fillText(`→ ${1 + i}A`, px + colW - bW / 2 - 3, py + leftPhotoH - bH * 0.3);
-      }
+          // Bottom Frame badge
+          const bW = Math.round(leftColW * 0.22);
+          const bH = Math.max(12, Math.round(unitH * 0.14));
+          ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+          drawRoundRect(ctx, px + leftColW - bW - 4, py + heroH - bH - 4, bW, bH, 2);
+          ctx.fill();
+          ctx.fillStyle = "#F59E0B";
+          ctx.font = `bold ${Math.round(bH * 0.65)}px "IBM Plex Mono", monospace`;
+          ctx.textAlign = "center";
+          ctx.fillText("→ 01A", px + leftColW - bW / 2 - 4, py + heroH - bH * 0.3);
 
-      // Draw Right Column: 3 or 5 photos
-      for (let j = 0; j < rightCount; j++) {
-        const img = loadedImages[leftCount + j];
-        if (!img) continue;
-        const px = rightColX;
-        const py = gridTop + j * (rightPhotoH + gap);
+          if (showOrangeDateStamp) {
+            drawRetroDateStamp(ctx, px, py, leftColW, heroH);
+          }
+        }
 
-        const isVideo = img instanceof HTMLVideoElement;
-        const filterStr = isVideo ? getCanvasFilter(activeFilter) : "none";
-        drawCoverImage(ctx, img, px, py, colW, rightPhotoH, photoRadius, filterStr, isVideo && isMirrored);
+        // Slots 1, 2, 3: Supporting Film Cuts on Left
+        for (let i = 1; i <= 3; i++) {
+          const img = loadedImages[i];
+          if (!img) continue;
+          const px = leftColX;
+          const py = gridTop + heroH + gap + (i - 1) * (unitH + gap);
 
-        ctx.strokeStyle = "#27272A";
-        ctx.lineWidth = Math.max(1.5, Math.round(cardW * 0.004));
-        drawRoundRect(ctx, px, py, colW, rightPhotoH, photoRadius);
-        ctx.stroke();
+          const isVideo = img instanceof HTMLVideoElement;
+          const filterStr = isVideo ? getCanvasFilter(activeFilter) : "none";
+          drawCoverImage(ctx, img, px, py, leftColW, unitH, photoRadius, filterStr, isVideo && isMirrored);
 
-        // Badge
-        const bW = Math.round(colW * 0.22);
-        const bH = Math.round(rightPhotoH * 0.14);
-        ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
-        drawRoundRect(ctx, px + colW - bW - 3, py + rightPhotoH - bH - 3, bW, bH, 2);
-        ctx.fill();
-        ctx.fillStyle = "#F59E0B";
-        ctx.font = `bold ${Math.round(bH * 0.65)}px "IBM Plex Mono", monospace`;
-        ctx.textAlign = "center";
-        ctx.fillText(`→ ${1 + j}`, px + colW - bW / 2 - 3, py + rightPhotoH - bH * 0.3);
+          ctx.strokeStyle = "#27272A";
+          ctx.lineWidth = Math.max(1.5, Math.round(cardW * 0.004));
+          drawRoundRect(ctx, px, py, leftColW, unitH, photoRadius);
+          ctx.stroke();
+
+          const bW = Math.round(leftColW * 0.22);
+          const bH = Math.max(12, Math.round(unitH * 0.14));
+          ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+          drawRoundRect(ctx, px + leftColW - bW - 4, py + unitH - bH - 4, bW, bH, 2);
+          ctx.fill();
+          ctx.fillStyle = "#F59E0B";
+          ctx.font = `bold ${Math.round(bH * 0.65)}px "IBM Plex Mono", monospace`;
+          ctx.textAlign = "center";
+          ctx.fillText(`→ 0${1 + i}A`, px + leftColW - bW / 2 - 4, py + unitH - bH * 0.3);
+
+          if (showOrangeDateStamp) {
+            drawRetroDateStamp(ctx, px, py, leftColW, unitH);
+          }
+        }
+
+        // Slots 4, 5, 6, 7, 8: 5 Contact Sheet Cuts on Right
+        for (let j = 0; j < 5; j++) {
+          const img = loadedImages[4 + j];
+          if (!img) continue;
+          const px = rightColX;
+          const py = gridTop + j * (unitH + gap);
+
+          const isVideo = img instanceof HTMLVideoElement;
+          const filterStr = isVideo ? getCanvasFilter(activeFilter) : "none";
+          drawCoverImage(ctx, img, px, py, rightColW, unitH, photoRadius, filterStr, isVideo && isMirrored);
+
+          ctx.strokeStyle = "#27272A";
+          ctx.lineWidth = Math.max(1.5, Math.round(cardW * 0.004));
+          drawRoundRect(ctx, px, py, rightColW, unitH, photoRadius);
+          ctx.stroke();
+
+          const bW = Math.round(rightColW * 0.22);
+          const bH = Math.max(12, Math.round(unitH * 0.14));
+          ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+          drawRoundRect(ctx, px + rightColW - bW - 4, py + unitH - bH - 4, bW, bH, 2);
+          ctx.fill();
+          ctx.fillStyle = "#F59E0B";
+          ctx.font = `bold ${Math.round(bH * 0.65)}px "IBM Plex Mono", monospace`;
+          ctx.textAlign = "center";
+          ctx.fillText(`→ 0${1 + j}`, px + rightColW - bW / 2 - 4, py + unitH - bH * 0.3);
+
+          if (showOrangeDateStamp) {
+            drawRetroDateStamp(ctx, px, py, rightColW, unitH);
+          }
+        }
+      } else {
+        // --- 5-ASYM-FILM: Original 2+3 layout ---
+        const leftCount = 2;
+        const rightCount = 3;
+
+        // Draw Left Column: 2 photos
+        for (let i = 0; i < leftCount; i++) {
+          const img = loadedImages[i];
+          if (!img) continue;
+          const px = leftColX;
+          const py = gridTop + i * (leftPhotoH + gap);
+
+          const isVideo = img instanceof HTMLVideoElement;
+          const filterStr = isVideo ? getCanvasFilter(activeFilter) : "none";
+          drawCoverImage(ctx, img, px, py, colW, leftPhotoH, photoRadius, filterStr, isVideo && isMirrored);
+
+          ctx.strokeStyle = "#27272A";
+          ctx.lineWidth = Math.max(1.5, Math.round(cardW * 0.004));
+          drawRoundRect(ctx, px, py, colW, leftPhotoH, photoRadius);
+          ctx.stroke();
+
+          // Badge
+          const bW = Math.round(colW * 0.22);
+          const bH = Math.round(leftPhotoH * 0.12);
+          ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+          drawRoundRect(ctx, px + colW - bW - 3, py + leftPhotoH - bH - 3, bW, bH, 2);
+          ctx.fill();
+          ctx.fillStyle = "#F59E0B";
+          ctx.font = `bold ${Math.round(bH * 0.65)}px "IBM Plex Mono", monospace`;
+          ctx.textAlign = "center";
+          ctx.fillText(`→ ${1 + i}A`, px + colW - bW / 2 - 3, py + leftPhotoH - bH * 0.3);
+
+          if (showOrangeDateStamp) {
+            drawRetroDateStamp(ctx, px, py, colW, leftPhotoH);
+          }
+        }
+
+        // Draw Right Column: 3 photos
+        for (let j = 0; j < rightCount; j++) {
+          const img = loadedImages[leftCount + j];
+          if (!img) continue;
+          const px = rightColX;
+          const py = gridTop + j * (rightPhotoH + gap);
+
+          const isVideo = img instanceof HTMLVideoElement;
+          const filterStr = isVideo ? getCanvasFilter(activeFilter) : "none";
+          drawCoverImage(ctx, img, px, py, colW, rightPhotoH, photoRadius, filterStr, isVideo && isMirrored);
+
+          ctx.strokeStyle = "#27272A";
+          ctx.lineWidth = Math.max(1.5, Math.round(cardW * 0.004));
+          drawRoundRect(ctx, px, py, colW, rightPhotoH, photoRadius);
+          ctx.stroke();
+
+          // Badge
+          const bW = Math.round(colW * 0.22);
+          const bH = Math.round(rightPhotoH * 0.14);
+          ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+          drawRoundRect(ctx, px + colW - bW - 3, py + rightPhotoH - bH - 3, bW, bH, 2);
+          ctx.fill();
+          ctx.fillStyle = "#F59E0B";
+          ctx.font = `bold ${Math.round(bH * 0.65)}px "IBM Plex Mono", monospace`;
+          ctx.textAlign = "center";
+          ctx.fillText(`→ ${1 + j}`, px + colW - bW / 2 - 3, py + rightPhotoH - bH * 0.3);
+
+          if (showOrangeDateStamp) {
+            drawRetroDateStamp(ctx, px, py, colW, rightPhotoH);
+          }
+        }
       }
     } else {
       // Center Dashed Cut Line for Twin Cut theme and 8-twin
@@ -1412,6 +1825,10 @@ function App() {
           ctx.lineWidth = Math.max(2.5, Math.round(cardW * 0.006));
           drawRoundRect(ctx, px, py, photoW, photoH, photoRadius);
           ctx.stroke();
+        }
+
+        if (showOrangeDateStamp) {
+          drawRetroDateStamp(ctx, px, py, photoW, photoH);
         }
       });
     }
@@ -1573,8 +1990,8 @@ function App() {
     ctx.textAlign = "left";
     const displayCaption =
       customCaptionText && customCaptionText.trim()
-        ? `✍ ${customCaptionText.trim().toUpperCase()}`
-        : "★ MEMORIES TO KEEP";
+        ? customCaptionText.trim().toUpperCase()
+        : "MEMORIES TO KEEP";
     ctx.fillText(
       displayCaption,
       contentX,
@@ -1710,11 +2127,11 @@ function App() {
           const leftMarginW = Math.round(cardW * 0.04);
           const rightMarginW = Math.round(cardW * 0.04);
           const spineW = Math.round(cardW * 0.045);
-          const colW = Math.floor(
-            (contentW - leftMarginW - rightMarginW - spineW - gap * 2) / 2,
-          );
-          const rightPhotoH = Math.round(colW * 0.68);
-          totalGridH = 5 * rightPhotoH + 4 * gap;
+          const availColW =
+            contentW - leftMarginW - rightMarginW - spineW - gap * 2;
+          const rightColW = availColW - Math.round(availColW * 0.58);
+          const unitH = Math.round(rightColW * 0.72);
+          totalGridH = 5 * unitH + 4 * gap;
         } else if (activeLayout.id === "5-asym-film") {
           const leftMarginW = Math.round(cardW * 0.04);
           const rightMarginW = Math.round(cardW * 0.04);
@@ -1779,6 +2196,8 @@ function App() {
         framePattern,
         captionFont,
         placedStickers,
+        showDateStamp,
+        dateStampText,
       );
 
       const modeSuffix = isStory ? "ig-story" : "strip";
@@ -1896,11 +2315,11 @@ function App() {
           const leftMarginW = Math.round(cardW * 0.04);
           const rightMarginW = Math.round(cardW * 0.04);
           const spineW = Math.round(cardW * 0.045);
-          const colW = Math.floor(
-            (contentW - leftMarginW - rightMarginW - spineW - gap * 2) / 2,
-          );
-          const rightPhotoH = Math.round(colW * 0.68);
-          totalGridH = 5 * rightPhotoH + 4 * gap;
+          const availColW =
+            contentW - leftMarginW - rightMarginW - spineW - gap * 2;
+          const rightColW = availColW - Math.round(availColW * 0.58);
+          const unitH = Math.round(rightColW * 0.72);
+          totalGridH = 5 * unitH + 4 * gap;
         } else if (activeLayout.id === "5-asym-film") {
           const leftMarginW = Math.round(cardW * 0.04);
           const rightMarginW = Math.round(cardW * 0.04);
@@ -2080,6 +2499,8 @@ function App() {
               framePattern,
               captionFont,
               placedStickers,
+              showDateStamp,
+              dateStampText,
             );
 
             // True real-world timestamp matching video playback time exactly (prevents 2x speedup)
@@ -2300,6 +2721,8 @@ function App() {
           framePattern,
           captionFont,
           placedStickers,
+          showDateStamp,
+          dateStampText,
         );
 
         if (Date.now() - fallbackStartTime < durationMs) {
@@ -2341,26 +2764,793 @@ function App() {
     }
   }, [videoClips, activeLayout, frameStyle, selectedStamps, exportFormat, filter, customCaption, customFrameColor, framePattern, captionFont, placedStickers]);
 
+  // Reusable helper to render a Stop-Motion Polaroid Card frame on canvas
+  const renderStopMotionCardFrame = (
+    ctx,
+    cardW,
+    cardH,
+    photoImg,
+    poseIndex,
+    totalPoses,
+  ) => {
+    ctx.clearRect(0, 0, cardW, cardH);
+
+    const frameColor = customFrameColor || frameStyle.bgColor;
+    const isDark =
+      frameStyle.id === "black" ||
+      frameStyle.id === "film" ||
+      frameStyle.id === "cyber" ||
+      frameStyle.id === "arcade";
+
+    // 1. Card Background
+    ctx.fillStyle = frameColor;
+    ctx.fillRect(0, 0, cardW, cardH);
+
+    // 2. Pattern Overlay
+    if (framePattern && framePattern !== "none") {
+      ctx.save();
+      ctx.fillStyle = isDark
+        ? "rgba(255, 255, 255, 0.08)"
+        : "rgba(15, 23, 42, 0.08)";
+      if (framePattern === "checkerboard") {
+        const step = 28;
+        for (let py = 0; py < cardH; py += step) {
+          for (let px = 0; px < cardW; px += step) {
+            if ((Math.floor(py / step) + Math.floor(px / step)) % 2 === 0) {
+              ctx.fillRect(px, py, step, step);
+            }
+          }
+        }
+      } else if (framePattern === "polkadot") {
+        const step = 32;
+        for (let py = step / 2; py < cardH; py += step) {
+          for (let px = step / 2; px < cardW; px += step) {
+            ctx.beginPath();
+            ctx.arc(px, py, 4, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      } else if (framePattern === "stripes") {
+        ctx.strokeStyle = isDark
+          ? "rgba(255, 255, 255, 0.08)"
+          : "rgba(15, 23, 42, 0.08)";
+        ctx.lineWidth = 14;
+        for (let offset = -cardH; offset < cardW + cardH; offset += 36) {
+          ctx.beginPath();
+          ctx.moveTo(offset, 0);
+          ctx.lineTo(offset + cardH, cardH);
+          ctx.stroke();
+        }
+      } else if (framePattern === "gridnotebook") {
+        ctx.strokeStyle = isDark
+          ? "rgba(255, 255, 255, 0.1)"
+          : "rgba(15, 23, 42, 0.1)";
+        ctx.lineWidth = 1;
+        for (let px = 0; px <= cardW; px += 24) {
+          ctx.beginPath();
+          ctx.moveTo(px, 0);
+          ctx.lineTo(px, cardH);
+          ctx.stroke();
+        }
+        for (let py = 0; py <= cardH; py += 24) {
+          ctx.beginPath();
+          ctx.moveTo(0, py);
+          ctx.lineTo(cardW, py);
+          ctx.stroke();
+        }
+      } else if (framePattern === "hearts") {
+        ctx.font = "20px sans-serif, 'Apple Color Emoji'";
+        ctx.fillStyle = "rgba(225, 29, 72, 0.22)";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        for (let py = 24; py < cardH; py += 48) {
+          for (let px = 24; px < cardW; px += 48) {
+            ctx.fillText("♥", px, py);
+          }
+        }
+      } else if (framePattern === "stars") {
+        ctx.font = "20px sans-serif, 'Apple Color Emoji'";
+        ctx.fillStyle = "rgba(234, 179, 8, 0.2)";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        for (let py = 24; py < cardH; py += 48) {
+          for (let px = 24; px < cardW; px += 48) {
+            ctx.fillText("★", px, py);
+          }
+        }
+      }
+      ctx.restore();
+    }
+
+    // 3. Card Outer Border (Neo-Brutalist 8px solid)
+    ctx.lineWidth = 8;
+    ctx.strokeStyle = "#0f172a";
+    ctx.strokeRect(4, 4, cardW - 8, cardH - 8);
+
+    // 4. Header Details
+    const dotY = 32;
+    ctx.fillStyle = "#ef4444";
+    ctx.beginPath();
+    ctx.arc(38, dotY, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#0f172a";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = "#eab308";
+    ctx.beginPath();
+    ctx.arc(58, dotY, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#10b981";
+    ctx.beginPath();
+    ctx.arc(78, dotY, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Header Text
+    ctx.fillStyle = isDark ? "#ffffff" : "#0f172a";
+    ctx.font = "bold 13px 'IBM Plex Mono', monospace";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillText(
+      `● POSE ${poseIndex + 1}/${totalPoses} [STOP-MOTION]`,
+      cardW - 38,
+      dotY,
+    );
+
+    // 5. Photo Slot
+    const slotX = 36;
+    const slotY = 54;
+    const slotW = cardW - 72; // 648
+    const slotH = 700; // Tall portrait slot
+
+    // Photo background fill
+    ctx.fillStyle = "#000000";
+    drawRoundRect(ctx, slotX, slotY, slotW, slotH, 12);
+    ctx.fill();
+
+    // Draw the photo (photoImg is an HTMLImageElement from photos array which already has filter baked in, or video element)
+    const isVideo = photoImg instanceof HTMLVideoElement;
+    const filterStr = isVideo ? getCanvasFilter(filter) : "none";
+    const filterName = isVideo ? filter : "none";
+    drawCoverImage(
+      ctx,
+      photoImg,
+      slotX,
+      slotY,
+      slotW,
+      slotH,
+      12,
+      filterStr,
+      isVideo && isMirrored,
+      filterName,
+    );
+
+    // Photo Slot Border
+    ctx.save();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = isDark ? "#ffffff33" : "#0f172a";
+    drawRoundRect(ctx, slotX, slotY, slotW, slotH, 12);
+    ctx.stroke();
+    ctx.restore();
+
+    if (showDateStamp) {
+      const stampStr = dateStampText || getDefaultDateStamp();
+      ctx.save();
+      ctx.font = 'bold 24px "VT323", "IBM Plex Mono", monospace';
+      ctx.textAlign = "right";
+      ctx.textBaseline = "bottom";
+      ctx.shadowColor = "#FF3700";
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = "#FF7A00";
+      ctx.fillText(stampStr, slotX + slotW - 14, slotY + slotH - 12);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#FFA726";
+      ctx.fillText(stampStr, slotX + slotW - 14, slotY + slotH - 12);
+      ctx.restore();
+    }
+
+    // 6. Placed Stickers & Stamps on Card
+    if (placedStickers && placedStickers.length > 0) {
+      placedStickers.forEach((stk) => {
+        ctx.save();
+        const posX = (stk.x / 100) * cardW;
+        const posY = (stk.y / 100) * cardH;
+        const scale = (stk.scale || 1) * 1.35;
+        const rotation = ((stk.rotation || 0) * Math.PI) / 180;
+
+        ctx.translate(posX, posY);
+        ctx.rotate(rotation);
+        ctx.scale(scale, scale);
+
+        const isSymbol = ["★", "✦", "✧", "♡", "☺"].includes(stk.content);
+        ctx.font = "38px 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        if (isSymbol) {
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = "#ffffff";
+          ctx.strokeText(stk.content, 0, 0);
+          ctx.fillStyle = "#0f172a";
+          ctx.fillText(stk.content, 0, 0);
+        } else {
+          ctx.fillText(stk.content, 0, 0);
+        }
+        ctx.restore();
+      });
+    } else if (selectedStamps && selectedStamps.length > 0) {
+      selectedStamps.forEach((st, sIdx) => {
+        if (st.sticker) {
+          ctx.save();
+          ctx.font = "32px 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(st.sticker, cardW - 70 - sIdx * 38, slotY + slotH - 35);
+          ctx.restore();
+        }
+      });
+    }
+
+    // 7. Caption & Footer
+    const footerCenterY = slotY + slotH + 42;
+    ctx.save();
+    const activeFont =
+      CAPTION_FONTS.find((f) => f.id === captionFont) || CAPTION_FONTS[0];
+    ctx.font = `bold 28px ${activeFont.family}`;
+    ctx.fillStyle = frameStyle.textColor || "#0f172a";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    const displayCaption = customCaption.trim() || "PHOTOBOOTH MEMORIES";
+    ctx.fillText(displayCaption, cardW / 2, footerCenterY);
+
+    // Subtitle & Retro Barcode
+    const nowStr = new Date().toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+    ctx.font = "bold 11px 'IBM Plex Mono', monospace";
+    ctx.fillStyle = isDark ? "#ffffff88" : "#0f172a88";
+    ctx.textAlign = "left";
+    ctx.fillText(`★ STOP-MOTION // ${nowStr.toUpperCase()}`, 38, cardH - 26);
+
+    // Barcode on bottom right
+    const bcX = cardW - 130;
+    const bcY = cardH - 34;
+    ctx.fillStyle = isDark ? "#ffffff" : "#0f172a";
+    const barWidths = [3, 1, 4, 2, 1, 5, 2, 1, 3, 2, 4, 1, 3, 2];
+    let curBcX = bcX;
+    barWidths.forEach((bw, bIdx) => {
+      if (bIdx % 2 === 0) {
+        ctx.fillRect(curBcX, bcY, bw, 16);
+      }
+      curBcX += bw + 1.5;
+    });
+    ctx.restore();
+  };
+
+  // Download animated looping Stop-Motion Card (.GIF) 100% in-browser with Netscape infinite loop
+  const downloadGifStrip = useCallback(
+    async (isShare = false) => {
+      if (photos.length === 0) return;
+
+      try {
+        setIsDownloadingGif(true);
+
+        if (isSoundEnabled) {
+          playPrintSound();
+        }
+
+        if (document.fonts) {
+          await document.fonts.ready;
+        }
+
+        const loadImage = (src) =>
+          new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = src;
+          });
+
+        const loadedImages = await Promise.all(
+          photos.map((src) => loadImage(src)),
+        );
+
+        const cardW = 720;
+        const cardH = 960;
+        const canvas = document.createElement("canvas");
+        canvas.width = cardW;
+        canvas.height = cardH;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+        const gif = GIFEncoder();
+        const frameDelay = 600; // 0.6 seconds per pose
+
+        for (let i = 0; i < loadedImages.length; i++) {
+          renderStopMotionCardFrame(
+            ctx,
+            cardW,
+            cardH,
+            loadedImages[i],
+            i,
+            loadedImages.length,
+          );
+
+          // Quantize & Write frame to GIF with Floyd-Steinberg error diffusion dithering (Netscape 2.0 loop forever!)
+          const { data } = ctx.getImageData(0, 0, cardW, cardH);
+          const palette = quantize(data, 256);
+          const index = applyPaletteWithDither(data, palette, cardW, cardH);
+          gif.writeFrame(index, cardW, cardH, {
+            palette,
+            delay: frameDelay,
+            repeat: 0,
+          });
+        }
+
+        gif.finish();
+        const bytes = gif.bytes();
+        const blob = new Blob([bytes], { type: "image/gif" });
+        const url = URL.createObjectURL(blob);
+        const filename = `photobooth-stopmotion-${Date.now()}.gif`;
+
+        if (isShare && navigator.canShare) {
+          const file = new File([blob], filename, { type: "image/gif" });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: "Photobooth Stop-Motion Card",
+              text: customCaption || "Lihat GIF Stop-Motion Photobooth seruku!",
+            });
+            return;
+          }
+        }
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        setSessionHistory((prev) => [
+          {
+            id: "gif-" + Date.now(),
+            mode: "gif",
+            layoutName: "Stop-Motion Card (GIF)",
+            caption: customCaption || "Stop-Motion Card",
+            timestamp: new Date().toLocaleTimeString("id-ID", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            thumbnailUrl: url,
+            blob,
+            filename,
+          },
+          ...prev,
+        ]);
+      } catch (err) {
+        console.error("Error generating GIF stop-motion:", err);
+      } finally {
+        setIsDownloadingGif(false);
+      }
+    },
+    [
+      photos,
+      isSoundEnabled,
+      customFrameColor,
+      frameStyle,
+      framePattern,
+      filter,
+      placedStickers,
+      selectedStamps,
+      captionFont,
+      customCaption,
+    ],
+  );
+
+  // Download looping Stop-Motion Card as MP4 Video (100% native compatibility for Instagram Story & WhatsApp)
+  const downloadStopMotionVideo = useCallback(
+    async (isShare = false) => {
+      if (photos.length === 0) return;
+
+      try {
+        setIsDownloadingStopMotion(true);
+
+        if (isSoundEnabled) {
+          playPrintSound();
+        }
+
+        if (document.fonts) {
+          await document.fonts.ready;
+        }
+
+        const loadImage = (src) =>
+          new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = src;
+          });
+
+        const loadedImages = await Promise.all(
+          photos.map((src) => loadImage(src)),
+        );
+
+        const cardW = 720;
+        const cardH = 960;
+        const canvas = document.createElement("canvas");
+        canvas.width = cardW;
+        canvas.height = cardH;
+        const ctx = canvas.getContext("2d");
+
+        // Duration: 2-3 full loops of all poses at 0.6s per pose (approx 3.6s - 5.4s, ideal for IG Story & WA)
+        const secondsPerPose = 0.6;
+        const singleCycle = loadedImages.length * secondsPerPose;
+        const totalCycles = Math.max(2, Math.ceil(3.6 / singleCycle));
+        const totalDurationSec = singleCycle * totalCycles;
+        const totalDurationMs = totalDurationSec * 1000;
+        const fps = 30;
+
+        let webCodecsSucceeded = false;
+        const hasWebCodecs = typeof VideoEncoder !== "undefined";
+
+        if (hasWebCodecs) {
+          try {
+            let encoderConfig = {
+              codec: "avc1.42001f",
+              width: cardW,
+              height: cardH,
+              bitrate: 3_500_000,
+              framerate: fps,
+            };
+
+            const isSupported =
+              await VideoEncoder.isConfigSupported(encoderConfig);
+            if (!isSupported.supported) {
+              encoderConfig.codec = "avc1.4d001f";
+              const isSupported2 =
+                await VideoEncoder.isConfigSupported(encoderConfig);
+              if (!isSupported2.supported) {
+                throw new Error("WebCodecs H.264 not supported in this browser");
+              }
+            }
+
+            const { Muxer, ArrayBufferTarget } = await import("mp4-muxer");
+            const muxer = new Muxer({
+              target: new ArrayBufferTarget(),
+              video: {
+                codec: "avc",
+                width: cardW,
+                height: cardH,
+              },
+              fastStart: "in-memory",
+            });
+
+            let encoderError = null;
+            const videoEncoder = new VideoEncoder({
+              output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+              error: (e) => {
+                console.error("StopMotion VideoEncoder error:", e);
+                encoderError = e;
+              },
+            });
+
+            videoEncoder.configure(encoderConfig);
+
+            const totalFrames = Math.round(totalDurationSec * fps);
+            for (let f = 0; f < totalFrames; f++) {
+              if (encoderError) break;
+
+              const currentTimeSec = f / fps;
+              const poseIdx =
+                Math.floor(currentTimeSec / secondsPerPose) %
+                loadedImages.length;
+
+              renderStopMotionCardFrame(
+                ctx,
+                cardW,
+                cardH,
+                loadedImages[poseIdx],
+                poseIdx,
+                loadedImages.length,
+              );
+
+              const timestampMicros = Math.round(currentTimeSec * 1_000_000);
+              const videoFrame = new VideoFrame(canvas, {
+                timestamp: timestampMicros,
+                duration: Math.round((1 / fps) * 1_000_000),
+              });
+
+              videoEncoder.encode(videoFrame, {
+                keyFrame: f % (fps * 2) === 0,
+              });
+              videoFrame.close();
+            }
+
+            await videoEncoder.flush();
+            videoEncoder.close();
+            muxer.finalize();
+
+            const buffer = muxer.target.buffer;
+            const blob = new Blob([buffer], { type: "video/mp4" });
+            const url = URL.createObjectURL(blob);
+            const filename = `photobooth-stopmotion-story-${Date.now()}.mp4`;
+
+            if (isShare && navigator.canShare) {
+              const file = new File([blob], filename, { type: "video/mp4" });
+              if (navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                  files: [file],
+                  title: "Photobooth Stop-Motion Story",
+                  text:
+                    customCaption ||
+                    "Lihat Video Stop-Motion Photobooth seruku!",
+                });
+                return;
+              }
+            }
+
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            setSessionHistory((prev) => [
+              {
+                id: "sm-video-" + Date.now(),
+                mode: "video",
+                layoutName: "Stop-Motion Story (MP4)",
+                caption: customCaption || "Stop-Motion Story",
+                timestamp: new Date().toLocaleTimeString("id-ID", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+                thumbnailUrl: url,
+                blob,
+                filename,
+              },
+              ...prev,
+            ]);
+            webCodecsSucceeded = true;
+            return;
+          } catch (wcErr) {
+            console.warn(
+              "WebCodecs Stop-Motion unavailable/failed, using WASM H.264:",
+              wcErr,
+            );
+          }
+        }
+
+        // Bulletproof Fallback: Pure WebAssembly H.264 MP4 Encoder (Always generates genuine .mp4 on Firefox, Safari, & Chrome)
+        if (!webCodecsSucceeded) {
+          try {
+            if (!window.HME) {
+              await new Promise((resolve, reject) => {
+                const script = document.createElement("script");
+                script.src = "/h264-mp4-encoder.web.js";
+                script.onload = () => resolve();
+                script.onerror = () =>
+                  reject(new Error("Gagal memuat modul H.264 MP4 encoder"));
+                document.head.appendChild(script);
+              });
+            }
+
+            if (window.HME && window.HME.createH264MP4Encoder) {
+              const encoder = await window.HME.createH264MP4Encoder();
+              encoder.width = cardW;
+              encoder.height = cardH;
+              encoder.frameRate = fps;
+              encoder.quantizationParameter = 20;
+              encoder.speed = 7;
+              encoder.groupOfPictures = fps;
+              encoder.initialize();
+
+              const totalFrames = Math.round(totalDurationSec * fps);
+              for (let f = 0; f < totalFrames; f++) {
+                const currentTimeSec = f / fps;
+                const poseIdx =
+                  Math.floor(currentTimeSec / secondsPerPose) %
+                  loadedImages.length;
+
+                renderStopMotionCardFrame(
+                  ctx,
+                  cardW,
+                  cardH,
+                  loadedImages[poseIdx],
+                  poseIdx,
+                  loadedImages.length,
+                );
+
+                const imgData = ctx.getImageData(0, 0, cardW, cardH);
+                encoder.addFrameRgba(imgData.data);
+              }
+
+              encoder.finalize();
+              const uint8Array = encoder.FS.readFile(encoder.outputFilename);
+              encoder.delete();
+
+              const blob = new Blob([uint8Array], { type: "video/mp4" });
+              const url = URL.createObjectURL(blob);
+              const filename = `photobooth-stopmotion-story-${Date.now()}.mp4`;
+
+              if (isShare && navigator.canShare) {
+                const file = new File([blob], filename, { type: "video/mp4" });
+                if (navigator.canShare({ files: [file] })) {
+                  await navigator.share({
+                    files: [file],
+                    title: "Photobooth Stop-Motion Story",
+                    text:
+                      customCaption ||
+                      "Lihat Video Stop-Motion Photobooth seruku!",
+                  });
+                  return;
+                }
+              }
+
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = filename;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+
+              setSessionHistory((prev) => [
+                {
+                  id: "sm-video-" + Date.now(),
+                  mode: "video",
+                  layoutName: "Stop-Motion Story (MP4)",
+                  caption: customCaption || "Stop-Motion Story",
+                  timestamp: new Date().toLocaleTimeString("id-ID", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
+                  thumbnailUrl: url,
+                  blob,
+                  filename,
+                },
+                ...prev,
+              ]);
+              return;
+            }
+          } catch (hmeErr) {
+            console.warn("WASM H.264 MP4 encoding error:", hmeErr);
+          }
+        }
+
+        // Final Fallback: MediaRecorder (guaranteed .mp4 container filename)
+        const stream = canvas.captureStream(fps);
+        let mimeType = "video/mp4";
+        if (!MediaRecorder.isTypeSupported("video/mp4")) {
+          mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=h264")
+            ? "video/webm;codecs=h264"
+            : "video/webm";
+        }
+
+        const recorder = new MediaRecorder(stream, {
+          mimeType,
+          videoBitsPerSecond: 3_000_000,
+        });
+
+        const chunks = [];
+        recorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) chunks.push(e.data);
+        };
+
+        const recordPromise = new Promise((resolve) => {
+          recorder.onstop = () => {
+            const blob = new Blob(chunks, { type: "video/mp4" });
+            const filename = `photobooth-stopmotion-story-${Date.now()}.mp4`;
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            setSessionHistory((prev) => [
+              {
+                id: "sm-video-" + Date.now(),
+                mode: "video",
+                layoutName: "Stop-Motion Story (MP4)",
+                caption: customCaption || "Stop-Motion Story",
+                timestamp: new Date().toLocaleTimeString("id-ID", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+                thumbnailUrl: url,
+                blob,
+                filename,
+              },
+              ...prev,
+            ]);
+            resolve();
+          };
+        });
+
+        recorder.start();
+        const startTime = performance.now();
+
+        const renderLoop = () => {
+          const elapsed = performance.now() - startTime;
+          const currentSec = elapsed / 1000;
+          const poseIdx =
+            Math.floor(currentSec / secondsPerPose) % loadedImages.length;
+          renderStopMotionCardFrame(
+            ctx,
+            cardW,
+            cardH,
+            loadedImages[poseIdx],
+            poseIdx,
+            loadedImages.length,
+          );
+
+          if (elapsed < totalDurationMs) {
+            requestAnimationFrame(renderLoop);
+          } else {
+            if (recorder.state === "recording") {
+              recorder.stop();
+            }
+          }
+        };
+
+        requestAnimationFrame(renderLoop);
+        await recordPromise;
+      } catch (err) {
+        console.error("Error generating Stop-Motion Video:", err);
+      } finally {
+        setIsDownloadingStopMotion(false);
+      }
+    },
+    [
+      photos,
+      isSoundEnabled,
+      customFrameColor,
+      frameStyle,
+      framePattern,
+      filter,
+      placedStickers,
+      selectedStamps,
+      captionFont,
+      customCaption,
+    ],
+  );
+
   return (
     <div className="min-h-screen bg-grid-light text-slate-900">
       {/* Top Navbar Neo-Brutalist */}
-      <header className="sticky top-0 z-40 w-full bg-white/95 border-b-2 border-slate-900 backdrop-blur-md px-2 sm:px-8 py-2 sm:py-3.5">
+      <header className="sticky top-0 z-40 w-full bg-white/95 border-b-2 border-slate-900 backdrop-blur-md px-2 sm:px-6 lg:px-8 py-1.5 sm:py-2.5">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-1.5 sm:gap-2">
           {/* Logo */}
-          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
+          <div className="flex items-center gap-1 sm:gap-2.5 shrink-0 min-w-0">
             <div className="brutal-badge bg-sky-400 p-1 sm:p-2 rounded-md sm:rounded-lg flex items-center justify-center text-slate-900 shrink-0">
               <Camera className="w-3.5 h-3.5 sm:w-5 sm:h-5 stroke-[2.5]" />
             </div>
             <div className="min-w-0">
-              <h1 className="font-syne font-extrabold text-[11px] xs:text-xs sm:text-xl tracking-tight text-slate-900 whitespace-nowrap">
+              <h1 className="font-syne font-black text-xs sm:text-base lg:text-xl tracking-tight text-slate-900 whitespace-nowrap">
                 PHOTOBOOTH
-                <span className="hidden sm:inline font-mono-retro text-xs font-normal text-slate-500 ml-1.5">by timurlauttt</span>
+                <span className="hidden lg:inline font-mono-retro text-xs font-normal text-slate-500 ml-1.5">by pangestudev</span>
               </h1>
             </div>
           </div>
 
           {/* Right Status Indicator & Actions */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 shrink-0">
+            {/* Guidebook / Panduan Penggunaan */}
+            <GuideModal />
+
+            {/* Developer Info Badge */}
+            <DeveloperBadge />
+
             {/* Privacy Badge Popover */}
             <PrivacyBadge />
 
@@ -2368,9 +3558,9 @@ function App() {
             <button
               type="button"
               onClick={handleToggleSound}
-              className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-full font-mono-retro text-[10px] sm:text-xs font-bold border-2 border-slate-900 transition-all cursor-pointer shrink-0 ${
+              className={`flex items-center justify-center p-1 sm:px-2.5 sm:py-1 rounded-full font-mono-retro text-[10px] sm:text-xs font-bold border-2 border-slate-900 transition-all cursor-pointer shrink-0 ${
                 isSoundEnabled
-                  ? "bg-emerald-300 text-slate-900 shadow-[1.5px_1.5px_0px_#0f172a]"
+                  ? "bg-emerald-300 text-slate-900 shadow-[1px_1px_0px_#0f172a] sm:shadow-[1.5px_1.5px_0px_#0f172a]"
                   : "bg-slate-200 text-slate-600 hover:bg-slate-300"
               }`}
               title={isSoundEnabled ? "Matikan Efek Suara SFX" : "Nyalakan Efek Suara SFX"}
@@ -2380,35 +3570,34 @@ function App() {
               ) : (
                 <VolumeX className="w-3.5 h-3.5 stroke-[2.5]" />
               )}
-              <span className="hidden md:inline">SFX {isSoundEnabled ? "ON" : "OFF"}</span>
+              <span className="hidden lg:inline ml-0.5">SFX {isSoundEnabled ? "ON" : "OFF"}</span>
             </button>
 
             {/* Session History Gallery Button */}
             <button
               type="button"
               onClick={() => setIsGalleryOpen(true)}
-              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 rounded-full brutal-badge bg-amber-200 hover:bg-amber-300 text-slate-900 font-mono-retro text-[10px] sm:text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap"
+              className="flex items-center gap-1 p-1 sm:px-2.5 sm:py-1 rounded-full brutal-badge bg-amber-200 hover:bg-amber-300 text-slate-900 font-mono-retro text-[10px] sm:text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap"
               title="Buka Riwayat Hasil Strip Sesi Ini"
             >
               <History className="w-3.5 h-3.5 stroke-[2.5]" />
               <span className="hidden sm:inline">GALERI</span>
-              <span>({sessionHistory.length})</span>
+              <span className="text-[10px] sm:text-xs font-bold">({sessionHistory.length})</span>
             </button>
 
-            {/* Live Status Badge */}
-            <div className="hidden xs:flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-full brutal-badge bg-emerald-100 text-emerald-800 font-mono-retro text-[10px] sm:text-xs font-bold shrink-0 whitespace-nowrap">
+            {/* Live Status Badge (Desktop only) */}
+            <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full brutal-badge bg-emerald-100 text-emerald-800 font-mono-retro text-xs font-bold shrink-0 whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse-dot"></span>
-              <span className="hidden sm:inline">{isCapturing ? "[● CAPTURING]" : "[● READY]"}</span>
-              <span className="sm:hidden">{isCapturing ? "REC" : "READY"}</span>
+              <span>{isCapturing ? "[● CAPTURING]" : "[● READY]"}</span>
             </div>
           </div>
         </div>
       </header>
 
       {/* Main Studio Container */}
-      <main className="max-w-7xl mx-auto p-3 sm:p-6 lg:p-8">
+      <main className="max-w-7xl mx-auto p-2.5 sm:p-6 lg:p-8">
         {/* Mobile View Switcher (Kamera & Pengaturan vs Preview Strip) */}
-        <div className="lg:hidden flex items-center p-1 bg-slate-100 rounded-lg border-2 border-slate-900 shadow-[3px_3px_0px_#0f172a] mb-3.5 gap-1 select-none">
+        <div className="lg:hidden flex items-center p-1 bg-slate-100 rounded-lg border-2 border-slate-900 shadow-[2px_2px_0px_#0f172a] sm:shadow-[3px_3px_0px_#0f172a] mb-3 sm:mb-4 gap-1 select-none">
           <button
             type="button"
             onClick={() => {
@@ -2424,8 +3613,8 @@ function App() {
             }`}
           >
             <Camera className="w-3.5 h-3.5 stroke-[2.5] shrink-0" />
-            <span className="truncate">1. KAMERA</span>
-            <span className="hidden sm:inline">& KONTROL</span>
+            <span className="hidden sm:inline">1. KAMERA &amp; KONTROL</span>
+            <span className="sm:hidden">1. KAMERA</span>
           </button>
           <button
             type="button"
@@ -2442,7 +3631,8 @@ function App() {
             }`}
           >
             <Layers className="w-3.5 h-3.5 stroke-[2.5] shrink-0" />
-            <span className="truncate">2. HASIL STRIP</span>
+            <span className="hidden sm:inline">2. HASIL STRIP</span>
+            <span className="sm:hidden">2. STRIP</span>
             {(captureMode === "video" ? videoClips.length : photos.length) > 0 && (
               <span className="shrink-0 text-[10px] font-mono-retro font-bold">
                 ({captureMode === "video" ? videoClips.length : photos.length}/{activeLayout.count})
@@ -2470,6 +3660,8 @@ function App() {
               onReset={resetSession}
               onDownload={downloadPhotoStrip}
               onDownloadVideo={downloadVideoStrip}
+              onDownloadGif={downloadGifStrip}
+              onDownloadStopMotionVideo={downloadStopMotionVideo}
               captureMode={captureMode}
               setCaptureMode={setCaptureMode}
               videoClips={videoClips}
@@ -2491,6 +3683,8 @@ function App() {
               isFlashing={isFlashing}
               isDownloading={isDownloading}
               isDownloadingVideo={isDownloadingVideo}
+              isDownloadingGif={isDownloadingGif}
+              isDownloadingStopMotion={isDownloadingStopMotion}
               activeTab={activeTab}
               setActiveTab={setActiveTab}
               exportFormat={exportFormat}
@@ -2519,6 +3713,18 @@ function App() {
               onAddPlacedSticker={handleAddPlacedSticker}
               placedStickers={placedStickers}
               onClearPlacedStickers={handleClearPlacedStickers}
+              isGestureEnabled={isGestureEnabled}
+              onToggleGesture={() => setIsGestureEnabled((p) => !p)}
+              isGestureDetected={isGestureDetected}
+              retakeIndex={retakeIndex}
+              onCancelRetake={() => setRetakeIndex(null)}
+              onStartRetake={startRetakePose}
+              showDateStamp={showDateStamp}
+              onToggleDateStamp={() => setShowDateStamp((p) => !p)}
+              dateStampText={dateStampText}
+              onChangeDateStampText={setDateStampText}
+              isKioskMode={isKioskMode}
+              onToggleKiosk={handleToggleKiosk}
             />
           </div>
 
@@ -2541,6 +3747,8 @@ function App() {
               selectedStamps={selectedStamps}
               onDownload={downloadPhotoStrip}
               onDownloadVideo={downloadVideoStrip}
+              onDownloadGif={downloadGifStrip}
+              onDownloadStopMotionVideo={downloadStopMotionVideo}
               onReset={resetSession}
               onShare={() =>
                 captureMode === "video"
@@ -2550,6 +3758,8 @@ function App() {
               isCapturing={isCapturing}
               isDownloading={isDownloading}
               isDownloadingVideo={isDownloadingVideo}
+              isDownloadingGif={isDownloadingGif}
+              isDownloadingStopMotion={isDownloadingStopMotion}
               exportFormat={exportFormat}
               setExportFormat={setExportFormat}
               isMirrored={isMirrored}
@@ -2561,10 +3771,53 @@ function App() {
               onUpdatePlacedSticker={handleUpdatePlacedSticker}
               onRemovePlacedSticker={handleRemovePlacedSticker}
               onClearPlacedStickers={handleClearPlacedStickers}
+              showDateStamp={showDateStamp}
+              dateStampText={dateStampText}
+              onRetakePose={(idx) => {
+                setRetakeIndex(idx);
+                setMobileTab("camera");
+              }}
             />
           </div>
         </div>
+
+        {/* Floating Kiosk Mode Exit Button */}
+        {isKioskMode && (
+          <button
+            type="button"
+            onClick={handleToggleKiosk}
+            className="fixed top-3 right-3 z-50 px-3 py-1.5 rounded-lg bg-slate-900/90 hover:bg-rose-600 text-white font-mono-retro text-xs font-black border-2 border-white shadow-[2px_2px_0px_#000] cursor-pointer transition-colors flex items-center gap-1.5"
+            title="Keluar dari layar penuh [ESC]"
+          >
+            <Minimize className="w-3.5 h-3.5" />
+            <span>KELUAR FULL [ESC]</span>
+          </button>
+        )}
       </main>
+
+      {/* Subtle Retro Footer */}
+      <footer className="w-full mt-10 py-5 border-t-2 border-slate-900 bg-white/80 backdrop-blur-sm text-center px-4">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-mono-retro text-slate-600">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-slate-800">PHOTOBOOTH</span>
+            <span className="text-slate-400">•</span>
+            <span>Created by <strong className="text-slate-900">pangestudev</strong></span>
+          </div>
+          <div className="flex items-center gap-4 text-[10px]">
+            <a
+              href="https://pangestudev.web.id/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-sky-600 underline font-semibold transition-colors flex items-center gap-1"
+            >
+              <span>pangestudev.web.id</span>
+              <span className="text-[9px]">↗</span>
+            </a>
+            <span className="text-slate-300">•</span>
+            <span className="text-slate-500">100% Client-Side &amp; Private</span>
+          </div>
+        </div>
+      </footer>
 
       {/* Session History Modal / Drawer */}
       <SessionGallery

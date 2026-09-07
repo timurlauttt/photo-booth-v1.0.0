@@ -22,6 +22,9 @@ import {
   VolumeX,
   Type,
   Lightbulb,
+  Hand,
+  Maximize,
+  Calendar,
 } from "lucide-react";
 import { playCountdownBeep, playShutterClick } from "../utils/audio";
 import {
@@ -43,6 +46,8 @@ const WebcamComponent = forwardRef(
       onReset,
       onDownload,
       onDownloadVideo,
+      onDownloadGif,
+      onDownloadStopMotionVideo,
       captureMode = "photo",
       setCaptureMode,
       videoClips = [],
@@ -64,6 +69,8 @@ const WebcamComponent = forwardRef(
       isFlashing,
       isDownloading,
       isDownloadingVideo,
+      isDownloadingGif = false,
+      isDownloadingStopMotion = false,
       activeTab,
       setActiveTab,
       exportFormat = "story",
@@ -91,6 +98,18 @@ const WebcamComponent = forwardRef(
       onAddPlacedSticker,
       placedStickers = [],
       onClearPlacedStickers,
+      isGestureEnabled = false,
+      onToggleGesture,
+      isGestureDetected = false,
+      retakeIndex = null,
+      onCancelRetake,
+      onStartRetake,
+      showDateStamp = false,
+      onToggleDateStamp,
+      dateStampText = "",
+      onChangeDateStampText,
+      isKioskMode = false,
+      onToggleKiosk,
     },
     ref,
   ) => {
@@ -173,6 +192,10 @@ const WebcamComponent = forwardRef(
     // Filter class for webcam preview
     const getFilterStyle = (f) => {
       switch (f) {
+        case "lightleak":
+          return "contrast-115 brightness-110 saturate-135 sepia-[0.2]";
+        case "filmgrain":
+          return "contrast-115 brightness-105 saturate-110 sepia-[0.15]";
         case "lores":
         case "pixelated":
           return "contrast-125 brightness-110 saturate-125";
@@ -259,12 +282,17 @@ const WebcamComponent = forwardRef(
 
           {/* Viewfinder Top Bar - Clean single row on all screens */}
           <div className="flex items-center justify-between gap-1 pb-2 mb-2 border-b-2 border-slate-900">
-            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-              <div className="w-2.5 h-2.5 rounded-full bg-red-500 border border-slate-900"></div>
-              <div className="w-2.5 h-2.5 rounded-full bg-yellow-400 border border-slate-900"></div>
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-slate-900"></div>
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0 min-w-0">
+              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500 border border-slate-900 animate-pulse"></div>
+              <div className="hidden sm:block w-2.5 h-2.5 rounded-full bg-yellow-400 border border-slate-900"></div>
+              <div className="hidden sm:block w-2.5 h-2.5 rounded-full bg-emerald-500 border border-slate-900"></div>
               <span className="text-[10px] sm:text-xs font-mono-retro font-bold text-slate-800">
-                VIEWFINDER.{captureMode === "video" ? "VID" : "REC"}
+                <span className="hidden sm:inline">
+                  VIEWFINDER.{captureMode === "video" ? "VID" : "REC"}
+                </span>
+                <span className="sm:hidden text-rose-600 font-black tracking-wider">
+                  REC
+                </span>
               </span>
             </div>
 
@@ -274,15 +302,16 @@ const WebcamComponent = forwardRef(
                 type="button"
                 onClick={() => {
                   if (isCapturing) return;
-                  const next = timerDuration === 3 ? 5 : timerDuration === 5 ? 10 : 3;
+                  const next =
+                    timerDuration === 3 ? 5 : timerDuration === 5 ? 10 : 3;
                   onTimerDurationChange?.(next);
                 }}
                 disabled={isCapturing}
-                className="px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[11px] font-mono-retro font-bold rounded border-2 border-slate-900 bg-amber-300 hover:bg-amber-400 text-slate-900 shadow-[1.5px_1.5px_0px_#0f172a] active:translate-y-0.5 transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                className="px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[11px] font-mono-retro font-bold rounded border-2 border-slate-900 bg-amber-300 hover:bg-amber-400 text-slate-900 shadow-[1px_1px_0px_#0f172a] sm:shadow-[1.5px_1.5px_0px_#0f172a] active:translate-y-0.5 transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer disabled:opacity-50 whitespace-nowrap"
                 title="Ganti Durasi Hitung Mundur: 3 Detik, 5 Detik, atau 10 Detik"
               >
                 <Timer className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
-                <span>⏱️ {timerDuration}S</span>
+                <span>{timerDuration}S</span>
               </button>
 
               {/* Quick Toggle: SFX Audio */}
@@ -291,7 +320,7 @@ const WebcamComponent = forwardRef(
                 onClick={onToggleSound}
                 className={`px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[11px] font-mono-retro font-bold rounded border-2 border-slate-900 transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer whitespace-nowrap ${
                   isSoundEnabled
-                    ? "bg-emerald-300 text-slate-900 shadow-[1.5px_1.5px_0px_#0f172a]"
+                    ? "bg-emerald-300 text-slate-900 shadow-[1px_1px_0px_#0f172a] sm:shadow-[1.5px_1.5px_0px_#0f172a]"
                     : "bg-slate-200 hover:bg-slate-300 text-slate-700"
                 }`}
                 title="Nyalakan / Matikan Efek Suara Kamera (SFX)"
@@ -301,23 +330,31 @@ const WebcamComponent = forwardRef(
                 ) : (
                   <VolumeX className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
                 )}
-                <span><span className="hidden xs:inline">SFX </span>{isSoundEnabled ? "ON" : "OFF"}</span>
+                <span>
+                  <span className="hidden sm:inline">SFX </span>
+                  {isSoundEnabled ? "ON" : "OFF"}
+                </span>
               </button>
 
               {/* Quick Toggle: Screen Ring Light / Flash Simulator */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-0.5 sm:gap-1">
                 <button
                   type="button"
                   onClick={onToggleRingLight}
                   className={`px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[11px] font-mono-retro font-bold rounded border-2 border-slate-900 transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer whitespace-nowrap ${
                     isRingLightOn
-                      ? "bg-amber-300 text-slate-900 shadow-[1.5px_1.5px_0px_#0f172a]"
+                      ? "bg-amber-300 text-slate-900 shadow-[1px_1px_0px_#0f172a] sm:shadow-[1.5px_1.5px_0px_#0f172a]"
                       : "bg-slate-200 hover:bg-slate-300 text-slate-700"
                   }`}
                   title="Nyalakan / Matikan Layar Ring Light untuk menerangi wajah di ruangan redup"
                 >
-                  <Lightbulb className={`w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5] ${isRingLightOn ? "text-amber-700 fill-amber-400" : ""}`} />
-                  <span><span className="hidden xs:inline">LIGHT </span>{isRingLightOn ? "ON" : "OFF"}</span>
+                  <Lightbulb
+                    className={`w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5] ${isRingLightOn ? "text-amber-700 fill-amber-400" : ""}`}
+                  />
+                  <span>
+                    <span className="hidden sm:inline">LIGHT </span>
+                    {isRingLightOn ? "ON" : "OFF"}
+                  </span>
                 </button>
 
                 {isRingLightOn && (
@@ -344,12 +381,64 @@ const WebcamComponent = forwardRef(
                 )}
               </div>
 
+              {/* Quick Toggle: Hands-Free Gesture Trigger (5 Jari / Open Palm) */}
+              <button
+                type="button"
+                onClick={onToggleGesture}
+                className={`px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[11px] font-mono-retro font-bold rounded border-2 border-slate-900 transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer whitespace-nowrap ${
+                  isGestureEnabled
+                    ? "bg-emerald-400 text-slate-950 shadow-[1px_1px_0px_#0f172a] sm:shadow-[1.5px_1.5px_0px_#0f172a]"
+                    : "bg-slate-200 hover:bg-slate-300 text-slate-700"
+                }`}
+                title="Hands-Free Gesture: Bentangkan 5 jari Anda di depan kamera untuk otomatis memotret tanpa sentuh"
+              >
+                <Hand className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
+                <span>
+                  <span className="hidden sm:inline">GESTURE </span>
+                  {isGestureEnabled ? "ON" : "OFF"}
+                </span>
+              </button>
+
+              {/* Quick Toggle: Kiosk / Fullscreen Mode */}
+              <button
+                type="button"
+                onClick={onToggleKiosk}
+                className={`px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[11px] font-mono-retro font-bold rounded border-2 border-slate-900 transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer whitespace-nowrap ${
+                  isKioskMode
+                    ? "bg-fuchsia-400 text-slate-950 shadow-[1px_1px_0px_#0f172a] sm:shadow-[1.5px_1.5px_0px_#0f172a]"
+                    : "bg-slate-200 hover:bg-slate-300 text-slate-700"
+                }`}
+                title="Mode Layar Penuh (Fullscreen)"
+              >
+                <Maximize className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
+                <span className="hidden sm:inline">FULL</span>
+              </button>
+
               {/* Counter Badge */}
-              <span className="text-[9px] sm:text-[11px] font-mono-retro px-1 sm:px-2 py-0.5 rounded bg-sky-100 text-sky-700 font-bold border border-slate-900 whitespace-nowrap">
+              <span className="text-[9px] sm:text-[11px] font-mono-retro px-1 sm:px-2 py-0.5 rounded bg-sky-100 text-sky-800 font-black border border-slate-900 whitespace-nowrap shrink-0">
                 {completedCount}/{activeLayout.count}
               </span>
             </div>
           </div>
+
+          {/* Mode Foto Ulang Pose Tertentu (Retake Mode Banner) */}
+          {retakeIndex !== null && (
+            <div className="bg-amber-400 border-2 border-slate-900 text-slate-900 px-3 py-1.5 rounded-md font-syne font-black text-xs sm:text-sm shadow-[2px_2px_0px_#0f172a] flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-1.5 truncate">
+                <RotateCcw className="w-4 h-4 stroke-[2.5] shrink-0" />
+                <span className="truncate">
+                  MODE FOTO ULANG: POSE #{retakeIndex + 1}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={onCancelRetake}
+                className="px-2 py-0.5 bg-white hover:bg-rose-100 text-rose-800 rounded border border-slate-900 font-mono-retro text-[10px] font-bold cursor-pointer shrink-0 transition-colors"
+              >
+                BATAL
+              </button>
+            </div>
+          )}
 
           {/* Camera Container with optional Luminous Ring Light Frame */}
           <div
@@ -387,6 +476,26 @@ const WebcamComponent = forwardRef(
               onUserMediaError={handleUserMediaError}
               className={`w-full h-full object-cover transition-all duration-300 ${isMirrored ? "-scale-x-100" : ""} ${getFilterStyle(filter)}`}
             />
+
+            {/* Live Filter Artistic Overlays */}
+            {filter === "lightleak" && (
+              <div
+                className="absolute inset-0 pointer-events-none z-10"
+                style={{
+                  background:
+                    "radial-gradient(circle at 0% 0%, rgba(255, 125, 40, 0.45) 0%, rgba(255, 175, 60, 0.28) 35%, rgba(255, 90, 120, 0.12) 65%, transparent 85%)",
+                  mixBlendMode: "screen",
+                }}
+              />
+            )}
+            {filter === "filmgrain" && (
+              <div
+                className="absolute inset-0 pointer-events-none z-10 opacity-30 mix-blend-overlay"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+                }}
+              />
+            )}
 
             {/* Flash Screen Animation */}
             {isFlashing && (
@@ -439,9 +548,7 @@ const WebcamComponent = forwardRef(
               <span
                 className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${isRecordingVideo ? "bg-red-500 animate-ping" : "bg-red-500 animate-pulse"}`}
               ></span>
-              <span>
-                {isRecordingVideo ? "REC 10S" : "LIVE // 60FPS"}
-              </span>
+              <span>{isRecordingVideo ? "REC 10S" : "LIVE // 60FPS"}</span>
             </div>
 
             <div className="absolute top-2 sm:top-3 right-2 sm:right-3 flex items-center gap-1 z-20">
@@ -449,7 +556,8 @@ const WebcamComponent = forwardRef(
                 ISO 400
               </span>
               <span className="bg-slate-950/80 text-sky-300 px-1.5 py-0.5 rounded font-mono-retro text-[9px] sm:text-[10px] tracking-wider border border-white/20">
-                <span className="hidden xs:inline">CAM: </span>{currentFacingMode === "user" ? "FRONT" : "BACK"}
+                <span className="hidden xs:inline">CAM: </span>
+                {currentFacingMode === "user" ? "FRONT" : "BACK"}
               </span>
               <span
                 className={`px-1.5 py-0.5 rounded font-mono-retro text-[9px] sm:text-[10px] tracking-wider border ${
@@ -458,13 +566,16 @@ const WebcamComponent = forwardRef(
                     : "bg-slate-950/80 text-slate-400 border-white/20"
                 }`}
               >
-                <span className="hidden xs:inline">MIRROR: </span>{isMirrored ? "ON" : "OFF"}
+                <span className="hidden xs:inline">MIRROR: </span>
+                {isMirrored ? "ON" : "OFF"}
               </span>
             </div>
 
             <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-3 bg-slate-950/80 text-slate-300 px-1.5 py-0.5 rounded font-mono-retro text-[9px] sm:text-[10px] border border-white/20 z-20">
               <span className="hidden xs:inline">{currentDateTime}</span>
-              <span className="xs:hidden">{currentDateTime.split(" ")[1] || currentDateTime}</span>
+              <span className="xs:hidden">
+                {currentDateTime.split(" ")[1] || currentDateTime}
+              </span>
             </div>
 
             {/* Viewfinder OSD Interactive Controls (Bottom Right) */}
@@ -480,7 +591,10 @@ const WebcamComponent = forwardRef(
                 title="Nyalakan / Matikan Grid Komposisi"
               >
                 <LayoutGrid className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
-                <span><span className="hidden xs:inline">GRID </span>{showGrid ? "ON" : "OFF"}</span>
+                <span>
+                  <span className="hidden xs:inline">GRID </span>
+                  {showGrid ? "ON" : "OFF"}
+                </span>
               </button>
 
               <button
@@ -505,7 +619,10 @@ const WebcamComponent = forwardRef(
                 title="Nyalakan / Matikan Mode Mirror (Cermin)"
               >
                 <FlipHorizontal2 className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
-                <span><span className="hidden xs:inline">MIRROR </span>{isMirrored ? "ON" : "OFF"}</span>
+                <span>
+                  <span className="hidden xs:inline">MIRROR </span>
+                  {isMirrored ? "ON" : "OFF"}
+                </span>
               </button>
             </div>
 
@@ -570,42 +687,78 @@ const WebcamComponent = forwardRef(
                 </div>
               </div>
             )}
+
+            {/* Hands-Free Gesture Detection HUD Feedback */}
+            {isGestureEnabled && isGestureDetected && (
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-emerald-400 border-2 border-slate-900 text-slate-950 px-3.5 py-1.5 rounded-full font-mono-retro text-[10px] sm:text-xs font-black shadow-[2px_2px_0px_#0f172a] animate-bounce flex items-center gap-1.5 z-30 pointer-events-none">
+                <Hand className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>ISYARAT 5 JARI TERDETEKSI: MEMULAI...</span>
+              </div>
+            )}
+
+            {isGestureEnabled && !isGestureDetected && !isCapturing && (
+              <div className="absolute bottom-2 left-2 bg-slate-950/85 backdrop-blur-xs text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/50 font-mono-retro text-[9px] font-bold flex items-center gap-1 z-20 pointer-events-none">
+                <Hand className="w-2.5 h-2.5 stroke-[2.5]" />
+                <span>
+                  {retakeIndex !== null
+                    ? `BENTANGKAN 5 JARI UNTUK RETAKE POSE ${retakeIndex + 1}`
+                    : isSessionComplete
+                    ? "SESI SELESAI • RESET UNTUK FOTO BARU"
+                    : "BENTANGKAN 5 JARI UNTUK MEMOTRET"}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Viewfinder Main Action Buttons */}
           <div className="mt-2.5 sm:mt-4 flex flex-wrap items-center gap-2 sm:gap-3">
-            <button
-              onClick={onStartSession}
-              disabled={isCapturing}
-              className={`flex-1 min-w-0 brutal-btn py-2.5 sm:py-3.5 px-3 sm:px-6 rounded-md font-syne font-extrabold text-xs sm:text-base tracking-wide flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
-                isCapturing
-                  ? "bg-amber-400 text-slate-900 cursor-wait"
-                  : isSessionComplete
-                    ? "bg-emerald-400 text-slate-900 hover:bg-emerald-300"
-                    : captureMode === "video"
-                      ? "bg-rose-500 hover:bg-rose-400 text-white"
-                      : "bg-sky-500 hover:bg-sky-400 text-slate-900"
-              }`}
-            >
-              {captureMode === "video" ? (
-                <Video className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5] shrink-0" />
-              ) : (
-                <Camera className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5] shrink-0" />
-              )}
-              <span className="truncate">
-                {isRecordingVideo
-                  ? "SEDANG MEREKAM..."
-                  : isCapturing
+            {retakeIndex !== null ? (
+              <button
+                onClick={() => onStartRetake?.(retakeIndex)}
+                disabled={isCapturing}
+                className="flex-1 min-w-0 brutal-btn py-2.5 sm:py-3.5 px-3 sm:px-6 rounded-md font-syne font-extrabold text-xs sm:text-base tracking-wide flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer bg-amber-400 hover:bg-amber-300 text-slate-900 shadow-[3px_3px_0px_#0f172a]"
+              >
+                <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5] shrink-0" />
+                <span className="truncate">
+                  {isCapturing
                     ? "BERSIAP..."
+                    : `AMBIL ULANG POSE #${retakeIndex + 1}`}
+                </span>
+              </button>
+            ) : (
+              <button
+                onClick={onStartSession}
+                disabled={isCapturing}
+                className={`flex-1 min-w-0 brutal-btn py-2.5 sm:py-3.5 px-3 sm:px-6 rounded-md font-syne font-extrabold text-xs sm:text-base tracking-wide flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
+                  isCapturing
+                    ? "bg-amber-400 text-slate-900 cursor-wait"
                     : isSessionComplete
-                      ? captureMode === "video"
-                        ? "REKAM ULANG VIDEO"
-                        : "AMBIL FOTO LAGI"
+                      ? "bg-emerald-400 text-slate-900 hover:bg-emerald-300"
                       : captureMode === "video"
-                        ? `MULAI REKAM VIDEO (${activeLayout.count}x10s)`
-                        : `MULAI FOTO (${activeLayout.count} POSE)`}
-              </span>
-            </button>
+                        ? "bg-rose-500 hover:bg-rose-400 text-white"
+                        : "bg-sky-500 hover:bg-sky-400 text-slate-900"
+                }`}
+              >
+                {captureMode === "video" ? (
+                  <Video className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5] shrink-0" />
+                ) : (
+                  <Camera className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5] shrink-0" />
+                )}
+                <span className="truncate">
+                  {isRecordingVideo
+                    ? "SEDANG MEREKAM..."
+                    : isCapturing
+                      ? "BERSIAP..."
+                      : isSessionComplete
+                        ? captureMode === "video"
+                          ? "REKAM ULANG VIDEO"
+                          : "AMBIL FOTO LAGI"
+                        : captureMode === "video"
+                          ? `MULAI REKAM VIDEO (${activeLayout.count}x10s)`
+                          : `MULAI FOTO (${activeLayout.count} POSE)`}
+                </span>
+              </button>
+            )}
 
             {completedCount > 0 && (
               <button
@@ -640,27 +793,70 @@ const WebcamComponent = forwardRef(
                     </span>
                   </button>
                 ) : (
-                  <button
-                    onClick={onDownload}
-                    disabled={isDownloading}
-                    className="brutal-btn bg-emerald-400 hover:bg-emerald-300 text-slate-900 py-2.5 sm:py-3.5 px-3 sm:px-5 rounded-md font-syne font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-[3px_3px_0px_#0f172a] shrink-0"
-                    title={
-                      exportFormat === "story"
-                        ? "Unduh format Instagram Story 9:16"
-                        : "Unduh foto PNG"
-                    }
-                  >
-                    <Download
-                      className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${isDownloading ? "animate-bounce" : ""}`}
-                    />
-                    <span>
-                      {isDownloading
-                        ? "MENYIAPKAN..."
-                        : exportFormat === "story"
-                          ? "IG STORY (PNG)"
-                          : "UNDUH PNG"}
-                    </span>
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={onDownload}
+                      disabled={
+                        isDownloading ||
+                        isDownloadingGif ||
+                        isDownloadingStopMotion
+                      }
+                      className="brutal-btn bg-emerald-400 hover:bg-emerald-300 text-slate-900 py-2 sm:py-3 px-2.5 sm:px-3.5 rounded-md font-syne font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 cursor-pointer shadow-[3px_3px_0px_#0f172a] shrink-0"
+                      title={
+                        exportFormat === "story"
+                          ? "Unduh format Instagram Story 9:16"
+                          : "Unduh foto PNG"
+                      }
+                    >
+                      <Download
+                        className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${isDownloading ? "animate-bounce" : ""}`}
+                      />
+                      <span>
+                        {isDownloading
+                          ? "MENYIAPKAN..."
+                          : exportFormat === "story"
+                            ? "IG STORY (PNG)"
+                            : "UNDUH PNG"}
+                      </span>
+                    </button>
+
+                    {onDownloadStopMotionVideo && (
+                      <button
+                        onClick={onDownloadStopMotionVideo}
+                        disabled={
+                          isDownloading ||
+                          isDownloadingGif ||
+                          isDownloadingStopMotion
+                        }
+                        className="brutal-btn bg-amber-400 hover:bg-amber-300 text-slate-900 py-2 sm:py-3 px-2.5 sm:px-3.5 rounded-md font-syne font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 cursor-pointer shadow-[3px_3px_0px_#0f172a] shrink-0"
+                        title="Unduh format Video MP4 Stop-Motion (Optimal untuk Instagram Story & WhatsApp)"
+                      >
+                        <Sparkles
+                          className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 text-slate-900 ${isDownloadingStopMotion ? "animate-spin" : ""}`}
+                        />
+                        <span>
+                          {isDownloadingStopMotion
+                            ? "MEMBUAT MP4..."
+                            : "MP4 STORY"}
+                        </span>
+                      </button>
+                    )}
+
+                    {onDownloadGif && (
+                      <button
+                        onClick={onDownloadGif}
+                        disabled={
+                          isDownloading ||
+                          isDownloadingGif ||
+                          isDownloadingStopMotion
+                        }
+                        className="brutal-btn bg-amber-200 hover:bg-amber-300 text-slate-900 py-2 sm:py-3 px-2 sm:px-3 rounded-md font-syne font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1 cursor-pointer shadow-[2px_2px_0px_#0f172a] shrink-0"
+                        title="Unduh file .GIF asli (Looping)"
+                      >
+                        <span>{isDownloadingGif ? "..." : "GIF LOOP"}</span>
+                      </button>
+                    )}
+                  </div>
                 )}
               </>
             )}
@@ -826,7 +1022,7 @@ const WebcamComponent = forwardRef(
               <div className="pt-2.5 sm:pt-3 border-t-2 border-dashed border-slate-300 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] sm:text-xs font-mono-retro font-bold text-slate-800 flex items-center gap-1.5">
-                    <span>🎨</span> WARNA CUSTOM STRIP:
+                    WARNA CUSTOM STRIP:
                   </span>
                   {customFrameColor && (
                     <button
@@ -856,7 +1052,8 @@ const WebcamComponent = forwardRef(
                       onClick={() => setCustomFrameColor?.(color.hex)}
                       title={color.label}
                       className={`w-6 h-6 sm:w-7 sm:h-7 rounded-md border-2 border-slate-900 transition-all cursor-pointer shadow-[1.5px_1.5px_0px_#0f172a] ${
-                        customFrameColor?.toUpperCase() === color.hex.toUpperCase()
+                        customFrameColor?.toUpperCase() ===
+                        color.hex.toUpperCase()
                           ? "ring-2 ring-amber-400 scale-110"
                           : "hover:scale-105"
                       }`}
@@ -875,7 +1072,9 @@ const WebcamComponent = forwardRef(
                       onChange={(e) => setCustomFrameColor?.(e.target.value)}
                       className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                     />
-                    <span className="text-[10px] font-bold text-slate-900 select-none">+</span>
+                    <span className="text-[10px] font-bold text-slate-900 select-none">
+                      +
+                    </span>
                   </label>
 
                   {customFrameColor && (
@@ -890,7 +1089,7 @@ const WebcamComponent = forwardRef(
               <div className="pt-2.5 sm:pt-3 border-t-2 border-dashed border-slate-300 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] sm:text-xs font-mono-retro font-bold text-slate-800 flex items-center gap-1.5">
-                    <span>🏁</span> POLA & TEKSTUR FRAME:
+                    POLA & TEKSTUR FRAME:
                   </span>
                   {framePattern !== "none" && (
                     <button
@@ -972,13 +1171,13 @@ const WebcamComponent = forwardRef(
               </div>
 
               <p className="text-[10px] sm:text-[11px] font-mono-retro text-slate-500 -mt-1">
-                Klik untuk menambah stiker (bisa stiker yang sama berulang kali, maks 4)
+                Klik untuk menambah stiker (bisa stiker yang sama berulang kali,
+                maks 4)
               </p>
 
               {/* Stiker Bebas Geser (Drag & Drop) Banner */}
               <div className="p-2 sm:p-2.5 rounded-lg bg-amber-50 border-2 border-slate-900 shadow-[2px_2px_0px_#0f172a] flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="text-base shrink-0">🖐️</span>
                   <div className="min-w-0">
                     <p className="font-syne font-extrabold text-[11px] sm:text-xs text-slate-900 leading-tight">
                       STIKER BEBAS GESER:
@@ -1107,7 +1306,8 @@ const WebcamComponent = forwardRef(
               </div>
 
               <p className="text-[10px] sm:text-[11px] font-mono-retro text-slate-500 -mt-1">
-                Teks ini akan tercetak langsung di bagian bawah photo strip Anda secara permanen.
+                Teks ini akan tercetak langsung di bagian bawah photo strip Anda
+                secara permanen.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-2">
@@ -1131,7 +1331,8 @@ const WebcamComponent = forwardRef(
                   className="brutal-btn px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-md bg-amber-300 hover:bg-amber-400 text-slate-900 text-[11px] sm:text-xs font-mono-retro font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-[2px_2px_0px_#0f172a]"
                   title="Gunakan tanggal hari ini sebagai caption"
                 >
-                  <span>📅 TANGGAL HARI INI</span>
+                  <Calendar className="w-3.5 h-3.5 shrink-0" />
+                  <span>TANGGAL HARI INI</span>
                 </button>
                 {customCaption && (
                   <button
@@ -1172,7 +1373,7 @@ const WebcamComponent = forwardRef(
               {/* Pilihan Gaya Font Caption */}
               <div className="pt-2.5 sm:pt-3 border-t-2 border-dashed border-slate-300 flex flex-col gap-2">
                 <span className="text-[11px] sm:text-xs font-mono-retro font-bold text-slate-800 flex items-center gap-1.5">
-                  <span>🔤</span> PILIH GAYA FONT CAPTION:
+                  PILIH GAYA FONT CAPTION:
                 </span>
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 sm:gap-2">
                   {CAPTION_FONTS.map((cf) => (
@@ -1187,7 +1388,10 @@ const WebcamComponent = forwardRef(
                       }`}
                       title={cf.desc}
                     >
-                      <span className="text-sm" style={{ fontFamily: cf.family }}>
+                      <span
+                        className="text-sm"
+                        style={{ fontFamily: cf.family }}
+                      >
                         Aa
                       </span>
                       <span className="font-mono-retro text-[10px] truncate">
@@ -1196,6 +1400,50 @@ const WebcamComponent = forwardRef(
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Cap Tanggal Oranye Digicam (Vintage Orange Quartz Stamp) */}
+              <div className="pt-2.5 sm:pt-3 border-t-2 border-dashed border-slate-300 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] sm:text-xs font-mono-retro font-bold text-slate-800">
+                      CAP TANGGAL DIGICAM (ORANGE QUARTZ):
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-400 font-mono-retro text-[9px] font-bold">
+                      Y2K VINTAGE
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onToggleDateStamp}
+                    className={`px-2.5 py-1 rounded-full font-mono-retro text-[10px] font-bold border-2 border-slate-900 cursor-pointer transition-all ${
+                      showDateStamp
+                        ? "bg-amber-400 text-slate-900 shadow-[1.5px_1.5px_0px_#0f172a]"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {showDateStamp ? "AKTIF" : "NONAKTIF"}
+                  </button>
+                </div>
+                <p className="text-[10px] sm:text-[11px] font-mono-retro text-slate-500">
+                  Mencetak stempel tanggal digital warna oranye neon retro di
+                  sudut kanan bawah setiap foto seperti kamera saku 90s/2000s.
+                </p>
+                {showDateStamp && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      maxLength={16}
+                      value={dateStampText}
+                      onChange={(e) => onChangeDateStampText?.(e.target.value)}
+                      placeholder="'26 09 07"
+                      className="w-36 px-2.5 py-1 text-xs font-mono font-bold tracking-widest rounded border-2 border-slate-900 bg-black text-amber-500 shadow-[1.5px_1.5px_0px_#0f172a] focus:outline-none"
+                    />
+                    <span className="text-[10px] font-mono-retro text-slate-500">
+                      Format bebas (contoh: &apos;26 09 07)
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}

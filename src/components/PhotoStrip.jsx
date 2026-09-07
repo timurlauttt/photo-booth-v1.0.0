@@ -7,12 +7,24 @@ import {
   Smartphone,
   Share2,
   Trash2,
+  Sparkles,
 } from "lucide-react";
 
 // Interactive Draggable Sticker Component
-function DraggableSticker({ sticker, isSelected, onSelect, onUpdate, onRemove }) {
+function DraggableSticker({
+  sticker,
+  isSelected,
+  onSelect,
+  onUpdate,
+  onRemove,
+}) {
   const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef({ pointerX: 0, pointerY: 0, initialX: sticker.x, initialY: sticker.y });
+  const dragStartRef = useRef({
+    pointerX: 0,
+    pointerY: 0,
+    initialX: sticker.x,
+    initialY: sticker.y,
+  });
 
   const handlePointerDown = (e) => {
     e.stopPropagation();
@@ -37,14 +49,27 @@ function DraggableSticker({ sticker, isSelected, onSelect, onUpdate, onRemove })
 
   const handlePointerMove = (e) => {
     if (!isDragging) return;
-    const { pointerX, pointerY, initialX, initialY, parentWidth, parentHeight } = dragStartRef.current;
+    const {
+      pointerX,
+      pointerY,
+      initialX,
+      initialY,
+      parentWidth,
+      parentHeight,
+    } = dragStartRef.current;
     if (!parentWidth || !parentHeight) return;
 
     const deltaX = ((e.clientX - pointerX) / parentWidth) * 100;
     const deltaY = ((e.clientY - pointerY) / parentHeight) * 100;
 
-    const newX = Math.max(5, Math.min(95, Math.round((initialX + deltaX) * 10) / 10));
-    const newY = Math.max(5, Math.min(95, Math.round((initialY + deltaY) * 10) / 10));
+    const newX = Math.max(
+      5,
+      Math.min(95, Math.round((initialX + deltaX) * 10) / 10),
+    );
+    const newY = Math.max(
+      5,
+      Math.min(95, Math.round((initialY + deltaY) * 10) / 10),
+    );
 
     onUpdate({ x: newX, y: newY });
   };
@@ -97,7 +122,9 @@ function DraggableSticker({ sticker, isSelected, onSelect, onUpdate, onRemove })
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onUpdate({ scale: Math.max(0.5, Math.round((scale - 0.2) * 10) / 10) });
+                onUpdate({
+                  scale: Math.max(0.5, Math.round((scale - 0.2) * 10) / 10),
+                });
               }}
               className="px-1 py-0.5 hover:bg-slate-700 rounded text-amber-300"
               title="Perkecil"
@@ -108,7 +135,9 @@ function DraggableSticker({ sticker, isSelected, onSelect, onUpdate, onRemove })
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onUpdate({ scale: Math.min(2.5, Math.round((scale + 0.2) * 10) / 10) });
+                onUpdate({
+                  scale: Math.min(2.5, Math.round((scale + 0.2) * 10) / 10),
+                });
               }}
               className="px-1 py-0.5 hover:bg-slate-700 rounded text-amber-300"
               title="Perbesar"
@@ -155,7 +184,8 @@ const getPatternStyle = (pat) => {
   }
   if (pat === "polkadot") {
     return {
-      backgroundImage: "radial-gradient(rgba(15,23,42,0.12) 18%, transparent 19%)",
+      backgroundImage:
+        "radial-gradient(rgba(15,23,42,0.12) 18%, transparent 19%)",
       backgroundSize: "18px 18px",
     };
   }
@@ -198,7 +228,8 @@ const getPatternStyle = (pat) => {
   }
   if (pat === "halftone") {
     return {
-      backgroundImage: "radial-gradient(circle, rgba(15,23,42,0.16) 2.5px, transparent 3px)",
+      backgroundImage:
+        "radial-gradient(circle, rgba(15,23,42,0.16) 2.5px, transparent 3px)",
       backgroundSize: "12px 12px",
     };
   }
@@ -239,11 +270,15 @@ const PhotoStrip = forwardRef(
       selectedStamps,
       onDownload,
       onDownloadVideo,
+      onDownloadGif,
+      onDownloadStopMotionVideo,
       onReset,
       onShare,
       isCapturing,
       isDownloading,
       isDownloadingVideo,
+      isDownloadingGif = false,
+      isDownloadingStopMotion = false,
       exportFormat = "story",
       setExportFormat,
       isMirrored = true,
@@ -255,6 +290,9 @@ const PhotoStrip = forwardRef(
       onUpdatePlacedSticker,
       onRemovePlacedSticker,
       onClearPlacedStickers,
+      showDateStamp = false,
+      dateStampText = "",
+      onRetakePose = null,
     },
     ref,
   ) => {
@@ -269,6 +307,10 @@ const PhotoStrip = forwardRef(
     // Filter class for video preview
     const getFilterStyle = (f) => {
       switch (f) {
+        case "lightleak":
+          return "contrast-115 brightness-110 saturate-135 sepia-[0.2]";
+        case "filmgrain":
+          return "contrast-115 brightness-105 saturate-110 sepia-[0.15]";
         case "lores":
         case "pixelated":
           return "contrast-125 brightness-110 saturate-125";
@@ -375,24 +417,91 @@ const PhotoStrip = forwardRef(
 
       if (hasVideo) {
         return (
-          <video
-            src={videoClips[idx]}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className={`w-full h-full object-cover select-none pointer-events-none transition-all duration-300 ${isMirrored ? "-scale-x-100" : ""} ${getFilterStyle(filter)}`}
-          />
+          <div className="relative w-full h-full overflow-hidden">
+            <video
+              src={videoClips[idx]}
+              autoPlay
+              loop
+              muted
+              playsInline
+              className={`w-full h-full object-cover select-none pointer-events-none transition-all duration-300 ${isMirrored ? "-scale-x-100" : ""} ${getFilterStyle(filter)}`}
+            />
+            {filter === "lightleak" && (
+              <div
+                className="absolute inset-0 pointer-events-none z-10"
+                style={{
+                  background:
+                    "radial-gradient(circle at 0% 0%, rgba(255, 125, 40, 0.45) 0%, rgba(255, 175, 60, 0.28) 35%, rgba(255, 90, 120, 0.12) 65%, transparent 85%)",
+                  mixBlendMode: "screen",
+                }}
+              />
+            )}
+            {filter === "filmgrain" && (
+              <div
+                className="absolute inset-0 pointer-events-none z-10 opacity-30 mix-blend-overlay"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+                }}
+              />
+            )}
+            {/* Vintage Digicam Orange Quartz Date Stamp */}
+            {showDateStamp && (
+              <div className="absolute bottom-1 right-1.5 z-20 pointer-events-none select-none font-mono text-[9px] sm:text-[11px] font-bold tracking-widest text-[#FF7A00] drop-shadow-[0_0_2px_#ff3300] [text-shadow:0_0_4px_#ff4500]">
+                {dateStampText || "'26 09 07"}
+              </div>
+            )}
+          </div>
         );
       }
 
       if (hasPhoto) {
         return (
-          <img
-            src={photos[idx]}
-            alt={`Foto ${idx + 1}`}
-            className="w-full h-full object-cover select-none pointer-events-none"
-          />
+          <div className="group relative w-full h-full overflow-hidden">
+            <img
+              src={photos[idx]}
+              alt={`Foto ${idx + 1}`}
+              className="w-full h-full object-cover select-none pointer-events-none"
+            />
+            {filter === "lightleak" && (
+              <div
+                className="absolute inset-0 pointer-events-none z-10"
+                style={{
+                  background:
+                    "radial-gradient(circle at 0% 0%, rgba(255, 125, 40, 0.45) 0%, rgba(255, 175, 60, 0.28) 35%, rgba(255, 90, 120, 0.12) 65%, transparent 85%)",
+                  mixBlendMode: "screen",
+                }}
+              />
+            )}
+            {filter === "filmgrain" && (
+              <div
+                className="absolute inset-0 pointer-events-none z-10 opacity-30 mix-blend-overlay"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+                }}
+              />
+            )}
+            {/* Vintage Digicam Orange Quartz Date Stamp */}
+            {showDateStamp && (
+              <div className="absolute bottom-1 right-1.5 z-20 pointer-events-none select-none font-mono text-[9px] sm:text-[11px] font-bold tracking-widest text-[#FF7A00] drop-shadow-[0_0_2px_#ff3300] [text-shadow:0_0_4px_#ff4500]">
+                {dateStampText || "'26 09 07"}
+              </div>
+            )}
+            {/* Interactive Retake Pose Button */}
+            {onRetakePose && !isCapturing && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRetakePose(idx);
+                }}
+                className="absolute top-1 right-1 z-30 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity bg-slate-900/90 hover:bg-amber-400 text-white hover:text-slate-950 px-1.5 py-0.5 rounded border border-slate-600 hover:border-slate-900 font-mono-retro text-[8px] sm:text-[9px] font-bold flex items-center gap-1 shadow cursor-pointer"
+                title={`Ambil ulang pose #${idx + 1}`}
+              >
+                <RotateCcw className="w-2.5 h-2.5 stroke-[2.5]" />
+                <span>ULANG</span>
+              </button>
+            )}
+          </div>
         );
       }
 
@@ -447,7 +556,9 @@ const PhotoStrip = forwardRef(
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-sky-500 animate-pulse-dot"></span>
             <span className="font-syne font-extrabold text-sm text-slate-800">
-              {captureMode === "video" ? "VIDEO STRIP PREVIEW" : "PRINT PREVIEW"}
+              {captureMode === "video"
+                ? "VIDEO STRIP PREVIEW"
+                : "PRINT PREVIEW"}
             </span>
           </div>
 
@@ -489,7 +600,9 @@ const PhotoStrip = forwardRef(
                     sticker={stk}
                     isSelected={selectedStickerId === stk.id}
                     onSelect={() => setSelectedStickerId(stk.id)}
-                    onUpdate={(updates) => onUpdatePlacedSticker?.(stk.id, updates)}
+                    onUpdate={(updates) =>
+                      onUpdatePlacedSticker?.(stk.id, updates)
+                    }
                     onRemove={() => onRemovePlacedSticker?.(stk.id)}
                   />
                 ))}
@@ -532,31 +645,69 @@ const PhotoStrip = forwardRef(
             {activeLayout.id === "9-asym-film" ? (
               <div className="flex w-full items-stretch relative bg-black p-2 rounded-md border-2 border-zinc-800">
                 {renderStickerOverlays()}
-                <div className="w-3.5 flex flex-col items-center justify-around text-[7px] font-mono-retro font-bold text-amber-500/80 select-none py-2">
-                  <span className="transform -rotate-90 whitespace-nowrap">← 1 A</span>
-                  <span className="transform -rotate-90 whitespace-nowrap">← 2</span>
-                  <span className="transform -rotate-90 whitespace-nowrap">← 2 A</span>
-                  <span className="transform -rotate-90 whitespace-nowrap">← 3</span>
+                <div className="w-3.5 flex flex-col items-center justify-around text-[7px] font-mono-retro font-bold text-amber-500/80 select-none py-2 shrink-0">
+                  <span className="transform -rotate-90 whitespace-nowrap">
+                    ← COVER
+                  </span>
+                  <span className="transform -rotate-90 whitespace-nowrap">
+                    ← 02 A
+                  </span>
+                  <span className="transform -rotate-90 whitespace-nowrap">
+                    ← 03 A
+                  </span>
+                  <span className="transform -rotate-90 whitespace-nowrap">
+                    ← 04 A
+                  </span>
                 </div>
-                <div className="flex-1 flex flex-col gap-1.5 ml-1">
-                  {[0, 1, 2, 3].map((idx) => (
+
+                {/* Left Column: Asymmetric Editorial Feature (1 Hero 2x height + 3 standard film cuts) */}
+                <div className="flex-[1.2] flex flex-col gap-1.5 ml-1 min-w-0">
+                  {/* Slot 0: Big Hero Feature Photo */}
+                  <div className="relative aspect-[4/5] w-full rounded-xs overflow-hidden border border-amber-500/40 bg-zinc-950 shadow-xs flex items-center justify-center">
+                    {renderSlotMedia(0)}
+                    <div className="absolute top-1 left-1 pointer-events-none">
+                      <span className="font-mono-retro text-[7px] font-black px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 shadow-xs uppercase tracking-wider">
+                        ★ FEATURE
+                      </span>
+                    </div>
+                    <div className="absolute bottom-0.5 right-0.5 pointer-events-none">
+                      <span className="font-mono-retro text-[8px] font-bold px-1 rounded bg-black/80 text-amber-400">
+                        → 01A
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Slots 1, 2, 3: Supporting Film Cuts */}
+                  {[1, 2, 3].map((idx) => (
                     <div
                       key={idx}
-                      className="relative aspect-[4/3] w-full rounded-xs overflow-hidden border border-zinc-800 bg-black shadow-xs flex items-center justify-center"
+                      className="relative aspect-[3/2] w-full rounded-xs overflow-hidden border border-zinc-800 bg-black shadow-xs flex items-center justify-center"
                     >
                       {renderSlotMedia(idx)}
                       <div className="absolute bottom-0.5 right-0.5 pointer-events-none">
                         <span className="font-mono-retro text-[8px] font-bold px-1 rounded bg-black/80 text-amber-400">
-                          → {1 + idx}A
+                          → 0{1 + idx}A
                         </span>
                       </div>
                     </div>
                   ))}
                 </div>
-                <div className="w-5 flex flex-col items-center justify-around py-2 border-x border-zinc-800 bg-black text-[7px] font-mono-retro font-bold text-zinc-400 select-none mx-1.5">
-                  <span className="transform -rotate-90 tracking-widest text-amber-500 whitespace-nowrap">FILM NEGATIVE</span>
+
+                {/* Central Film Negative Spine */}
+                <div className="w-5 flex flex-col items-center justify-around py-2 border-x border-zinc-800 bg-black text-[7px] font-mono-retro font-bold text-zinc-400 select-none mx-1.5 shrink-0">
+                  <span className="transform -rotate-90 tracking-widest text-amber-500 whitespace-nowrap">
+                    35MM NEGATIVE
+                  </span>
+                  <span className="transform -rotate-90 text-[6px] text-zinc-600 whitespace-nowrap">
+                    • • •
+                  </span>
+                  <span className="transform -rotate-90 tracking-widest text-amber-500 whitespace-nowrap">
+                    CONTACT SHEET
+                  </span>
                 </div>
-                <div className="flex-1 flex flex-col gap-1 mr-1">
+
+                {/* Right Column: 5 Sequential Film Cuts */}
+                <div className="flex-[0.8] flex flex-col gap-1 mr-1 min-w-0">
                   {[4, 5, 6, 7, 8].map((idx) => (
                     <div
                       key={idx}
@@ -565,7 +716,7 @@ const PhotoStrip = forwardRef(
                       {renderSlotMedia(idx)}
                       <div className="absolute bottom-0.5 right-0.5 pointer-events-none">
                         <span className="font-mono-retro text-[8px] font-bold px-1 rounded bg-black/80 text-amber-400">
-                          → {idx - 3}
+                          → 0{idx - 3}
                         </span>
                       </div>
                     </div>
@@ -576,8 +727,12 @@ const PhotoStrip = forwardRef(
               <div className="flex w-full items-stretch relative bg-black p-2 rounded-md border-2 border-zinc-800">
                 {renderStickerOverlays()}
                 <div className="w-3.5 flex flex-col items-center justify-around text-[7px] font-mono-retro font-bold text-amber-500/80 select-none py-2">
-                  <span className="transform -rotate-90 whitespace-nowrap">← 1 A</span>
-                  <span className="transform -rotate-90 whitespace-nowrap">← 2</span>
+                  <span className="transform -rotate-90 whitespace-nowrap">
+                    ← 1 A
+                  </span>
+                  <span className="transform -rotate-90 whitespace-nowrap">
+                    ← 2
+                  </span>
                 </div>
                 <div className="flex-1 flex flex-col gap-1.5 ml-1">
                   {[0, 1].map((idx) => (
@@ -595,7 +750,9 @@ const PhotoStrip = forwardRef(
                   ))}
                 </div>
                 <div className="w-5 flex flex-col items-center justify-around py-2 border-x border-zinc-800 bg-black text-[7px] font-mono-retro font-bold text-zinc-400 select-none mx-1.5">
-                  <span className="transform -rotate-90 tracking-widest text-amber-500 whitespace-nowrap">FILM NEGATIVE</span>
+                  <span className="transform -rotate-90 tracking-widest text-amber-500 whitespace-nowrap">
+                    FILM NEGATIVE
+                  </span>
                 </div>
                 <div className="flex-1 flex flex-col gap-1 mr-1">
                   {[2, 3, 4].map((idx) => (
@@ -693,8 +850,9 @@ const PhotoStrip = forwardRef(
         {placedStickers && placedStickers.length > 0 && (
           <div className="w-full max-w-[340px] flex items-center justify-between px-3 py-1.5 rounded-lg bg-amber-100 border-2 border-slate-900 shadow-[2px_2px_0px_#0f172a] text-xs font-mono-retro font-bold text-slate-900">
             <span className="flex items-center gap-1.5 truncate">
-              <span>🖐️</span>
-              <span className="truncate">{placedStickers.length} Stiker Tertempel (Seret / Putar)</span>
+              <span className="truncate">
+                {placedStickers.length} Stiker Tertempel (Seret / Putar)
+              </span>
             </span>
             <button
               type="button"
@@ -714,7 +872,9 @@ const PhotoStrip = forwardRef(
               <div className="flex items-center justify-between text-[11px] font-mono-retro font-bold text-slate-600">
                 <span>FORMAT UNDUHAN:</span>
                 <span className="text-amber-500 font-extrabold">
-                  {exportFormat === "story" ? "IG STORY (1080x1920)" : "STRIP PAS"}
+                  {exportFormat === "story"
+                    ? "IG STORY (1080x1920)"
+                    : "STRIP PAS"}
                 </span>
               </div>
 
@@ -761,7 +921,7 @@ const PhotoStrip = forwardRef(
                 /* Download PNG Button */
                 <button
                   onClick={onDownload}
-                  disabled={isDownloading}
+                  disabled={isDownloading || isDownloadingGif}
                   className="flex-1 brutal-btn bg-emerald-400 hover:bg-emerald-300 text-slate-900 py-2.5 sm:py-3.5 px-3 rounded-lg font-syne font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-[3px_3px_0px_#0f172a]"
                 >
                   <Download
@@ -776,7 +936,9 @@ const PhotoStrip = forwardRef(
                 <button
                   type="button"
                   onClick={onShare}
-                  disabled={isDownloading || isDownloadingVideo}
+                  disabled={
+                    isDownloading || isDownloadingVideo || isDownloadingGif
+                  }
                   className="brutal-btn bg-sky-300 hover:bg-sky-200 text-slate-900 py-2.5 sm:py-3.5 px-2.5 sm:px-3 rounded-lg font-syne font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 cursor-pointer shadow-[3px_3px_0px_#0f172a]"
                   title="Bagikan ke WhatsApp, Instagram, dll"
                 >
@@ -788,13 +950,61 @@ const PhotoStrip = forwardRef(
               {/* Retake Button */}
               <button
                 onClick={onReset}
-                disabled={isDownloading || isDownloadingVideo}
+                disabled={
+                  isDownloading || isDownloadingVideo || isDownloadingGif
+                }
                 className="brutal-btn bg-slate-200 hover:bg-slate-300 text-slate-900 py-2.5 sm:py-3 px-3 sm:px-3.5 rounded-lg font-mono-retro text-xs font-bold flex items-center justify-center cursor-pointer shadow-[2px_2px_0px_#0f172a]"
-                title={captureMode === "video" ? "Rekam Ulang Video" : "Foto Ulang"}
+                title={
+                  captureMode === "video" ? "Rekam Ulang Video" : "Foto Ulang"
+                }
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
             </div>
+
+            {/* Special Feature: Stop-Motion Card Downloads (MP4 Video & GIF) */}
+            {captureMode !== "video" && (
+              <div className="flex gap-2 w-full">
+                {onDownloadStopMotionVideo && (
+                  <button
+                    type="button"
+                    onClick={onDownloadStopMotionVideo}
+                    disabled={
+                      isDownloading ||
+                      isDownloadingGif ||
+                      isDownloadingStopMotion
+                    }
+                    className="flex-1 brutal-btn bg-amber-400 hover:bg-amber-300 text-slate-900 py-2.5 sm:py-3 px-3 rounded-lg font-syne font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 cursor-pointer shadow-[3px_3px_0px_#0f172a]"
+                    title="Unduh Video MP4 Stop-Motion Card (Paling pas untuk Instagram Story & WhatsApp)"
+                  >
+                    <Sparkles
+                      className={`w-4 h-4 text-slate-900 ${isDownloadingStopMotion ? "animate-spin" : ""}`}
+                    />
+                    <span className="truncate">
+                      {isDownloadingStopMotion
+                        ? "MEMBUAT MP4..."
+                        : "MP4 STORY (IG / WA)"}
+                    </span>
+                  </button>
+                )}
+
+                {onDownloadGif && (
+                  <button
+                    type="button"
+                    onClick={onDownloadGif}
+                    disabled={
+                      isDownloading ||
+                      isDownloadingGif ||
+                      isDownloadingStopMotion
+                    }
+                    className="brutal-btn bg-amber-200 hover:bg-amber-300 text-slate-900 py-2.5 sm:py-3 px-3 rounded-lg font-syne font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1 cursor-pointer shadow-[2px_2px_0px_#0f172a] shrink-0"
+                    title="Unduh file .GIF asli (Looping)"
+                  >
+                    <span>{isDownloadingGif ? "..." : "GIF LOOP"}</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

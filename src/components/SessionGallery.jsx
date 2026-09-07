@@ -47,7 +47,12 @@ export default function SessionGallery({
     if (item.blob && navigator.canShare) {
       try {
         const file = new File([item.blob], item.filename || "photobooth.png", {
-          type: item.mode === "video" ? "video/mp4" : "image/png",
+          type:
+            item.mode === "video"
+              ? "video/mp4"
+              : item.mode === "gif"
+                ? "image/gif"
+                : "image/png",
         });
         if (navigator.canShare({ files: [file] })) {
           await navigator.share({
@@ -78,7 +83,7 @@ export default function SessionGallery({
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-slate-900"></div>
             </div>
             <h2 className="font-syne font-extrabold text-xs sm:text-sm tracking-tight flex items-center gap-1.5 min-w-0 truncate">
-              <span className="truncate">🗂️ GALERI SESI</span>
+              <span className="truncate">GALERI SESI</span>
             </h2>
             <span className="shrink-0 text-[10px] sm:text-xs px-2 py-0.5 rounded-full bg-slate-900 text-amber-300 font-mono-retro font-bold">
               {items.length} STRIP
@@ -131,7 +136,11 @@ export default function SessionGallery({
                         </div>
                       )}
                       <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded font-mono-retro text-[9px] font-bold bg-slate-950/80 text-white border border-white/20">
-                        {item.mode === "video" ? "🎥 VIDEO" : "📷 FOTO"}
+                        {item.mode === "video"
+                          ? "VIDEO"
+                          : item.mode === "gif"
+                            ? "GIF"
+                            : "FOTO"}
                       </span>
                     </div>
 
