@@ -1,4 +1,4 @@
-import { forwardRef, useState, useEffect } from "react";
+import { forwardRef, useState, useEffect, useRef } from "react";
 import Webcam from "react-webcam";
 import {
   Camera,
@@ -25,6 +25,8 @@ import {
   Hand,
   Maximize,
   Calendar,
+  UploadCloud,
+  ImagePlus,
 } from "lucide-react";
 import { playCountdownBeep, playShutterClick } from "../utils/audio";
 import {
@@ -110,9 +112,14 @@ const WebcamComponent = forwardRef(
       onChangeDateStampText,
       isKioskMode = false,
       onToggleKiosk,
+      inputSource = "camera",
+      setInputSource,
+      onUploadPhotos,
     },
     ref,
   ) => {
+    const fileInputRef = useRef(null);
+    const [isDragging, setIsDragging] = useState(false);
     const [currentDateTime, setCurrentDateTime] = useState("");
     const [showGrid, setShowGrid] = useState(true);
     const [localFacingMode, setLocalFacingMode] = useState("user");
@@ -154,6 +161,36 @@ const WebcamComponent = forwardRef(
         } else {
           setLocalFacingMode("user");
         }
+      }
+    };
+
+    const handleFileInputChange = (e) => {
+      const files = e.target.files;
+      if (files && files.length > 0 && onUploadPhotos) {
+        onUploadPhotos(files, retakeIndex);
+      }
+      e.target.value = "";
+    };
+
+    const handleDragOver = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!isDragging) setIsDragging(true);
+    };
+
+    const handleDragLeave = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+    };
+
+    const handleDrop = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+      const files = e.dataTransfer?.files;
+      if (files && files.length > 0 && onUploadPhotos) {
+        onUploadPhotos(files, retakeIndex);
       }
     };
 
@@ -240,185 +277,247 @@ const WebcamComponent = forwardRef(
       <div className="w-full flex flex-col gap-6">
         {/* Viewfinder Card */}
         <div className="brutal-card-lg bg-white rounded-lg p-3 sm:p-4 transition-all duration-200">
-          {/* Upfront Mode Switcher: FOTO vs VIDEO */}
-          <div className="flex items-center gap-1.5 sm:gap-2 p-1 sm:p-1.5 bg-slate-100 rounded-lg border-2 border-slate-900 shadow-[2px_2px_0px_#0f172a] mb-3">
+          {/* Upfront Mode Switcher: KAMERA vs UPLOAD FOTO vs VIDEO */}
+          <div className="flex items-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 bg-slate-100 rounded-lg border-2 border-slate-900 shadow-[2px_2px_0px_#0f172a] mb-3">
             <button
               type="button"
               onClick={() => {
                 if (!isCapturing) {
                   setCaptureMode?.("photo");
-                  onReset?.();
+                  setInputSource?.("camera");
                 }
               }}
               disabled={isCapturing}
-              className={`flex-1 py-1.5 px-2 sm:px-3 rounded-md font-mono-retro text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
-                captureMode === "photo"
+              className={`flex-1 py-1.5 px-1.5 sm:px-2 rounded-md font-mono-retro text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                captureMode === "photo" && inputSource === "camera"
                   ? "bg-sky-400 text-slate-900 shadow-[2px_2px_0px_#0f172a]"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
               <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-              <span>MODE FOTO</span>
+              <span>KAMERA</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!isCapturing) {
+                  setCaptureMode?.("photo");
+                  setInputSource?.("upload");
+                }
+              }}
+              disabled={isCapturing}
+              className={`flex-1 py-1.5 px-1.5 sm:px-2 rounded-md font-mono-retro text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                captureMode === "photo" && inputSource === "upload"
+                  ? "bg-amber-400 text-slate-900 shadow-[2px_2px_0px_#0f172a]"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <UploadCloud className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span>UPLOAD FOTO</span>
             </button>
             <button
               type="button"
               onClick={() => {
                 if (!isCapturing) {
                   setCaptureMode?.("video");
+                  setInputSource?.("camera");
                   onReset?.();
                 }
               }}
               disabled={isCapturing}
-              className={`flex-1 py-1.5 px-2 sm:px-3 rounded-md font-mono-retro text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex-1 py-1.5 px-1.5 sm:px-2 rounded-md font-mono-retro text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
                 captureMode === "video"
                   ? "bg-rose-400 text-slate-900 shadow-[2px_2px_0px_#0f172a]"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
               <Video className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-              <span>MODE VIDEO (10S)</span>
+              <span>VIDEO (15S)</span>
             </button>
           </div>
 
           {/* Viewfinder Top Bar - Clean single row on all screens */}
+          {/* Viewfinder Top Bar - Clean single row on all screens */}
           <div className="flex items-center justify-between gap-1 pb-2 mb-2 border-b-2 border-slate-900">
             <div className="flex items-center gap-1 sm:gap-2 shrink-0 min-w-0">
-              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500 border border-slate-900 animate-pulse"></div>
+              <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full border border-slate-900 animate-pulse ${inputSource === "upload" ? "bg-amber-400" : "bg-red-500"}`}></div>
               <div className="hidden sm:block w-2.5 h-2.5 rounded-full bg-yellow-400 border border-slate-900"></div>
               <div className="hidden sm:block w-2.5 h-2.5 rounded-full bg-emerald-500 border border-slate-900"></div>
               <span className="text-[10px] sm:text-xs font-mono-retro font-bold text-slate-800">
-                <span className="hidden sm:inline">
-                  VIEWFINDER.{captureMode === "video" ? "VID" : "REC"}
-                </span>
-                <span className="sm:hidden text-rose-600 font-black tracking-wider">
-                  REC
-                </span>
+                {inputSource === "upload" ? (
+                  <>
+                    <span className="hidden sm:inline">
+                      DROPZONE.{isSessionComplete ? "DONE" : "READY"}
+                    </span>
+                    <span className="sm:hidden text-amber-700 font-black tracking-wider">
+                      UPLOAD
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="hidden sm:inline">
+                      VIEWFINDER.{captureMode === "video" ? "VID" : "REC"}
+                    </span>
+                    <span className="sm:hidden text-rose-600 font-black tracking-wider">
+                      REC
+                    </span>
+                  </>
+                )}
               </span>
             </div>
 
-            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-              {/* Quick Toggle: Timer Duration (3s, 5s, 10s) */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (isCapturing) return;
-                  const next =
-                    timerDuration === 3 ? 5 : timerDuration === 5 ? 10 : 3;
-                  onTimerDurationChange?.(next);
-                }}
-                disabled={isCapturing}
-                className="px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[11px] font-mono-retro font-bold rounded border-2 border-slate-900 bg-amber-300 hover:bg-amber-400 text-slate-900 shadow-[1px_1px_0px_#0f172a] sm:shadow-[1.5px_1.5px_0px_#0f172a] active:translate-y-0.5 transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer disabled:opacity-50 whitespace-nowrap"
-                title="Ganti Durasi Hitung Mundur: 3 Detik, 5 Detik, atau 10 Detik"
-              >
-                <Timer className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
-                <span>{timerDuration}S</span>
-              </button>
-
-              {/* Quick Toggle: SFX Audio */}
-              <button
-                type="button"
-                onClick={onToggleSound}
-                className={`px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[11px] font-mono-retro font-bold rounded border-2 border-slate-900 transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer whitespace-nowrap ${
-                  isSoundEnabled
-                    ? "bg-emerald-300 text-slate-900 shadow-[1px_1px_0px_#0f172a] sm:shadow-[1.5px_1.5px_0px_#0f172a]"
-                    : "bg-slate-200 hover:bg-slate-300 text-slate-700"
-                }`}
-                title="Nyalakan / Matikan Efek Suara Kamera (SFX)"
-              >
-                {isSoundEnabled ? (
-                  <Volume2 className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
-                ) : (
-                  <VolumeX className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
-                )}
-                <span>
-                  <span className="hidden sm:inline">SFX </span>
-                  {isSoundEnabled ? "ON" : "OFF"}
-                </span>
-              </button>
-
-              {/* Quick Toggle: Screen Ring Light / Flash Simulator */}
-              <div className="flex items-center gap-0.5 sm:gap-1">
+            {inputSource === "upload" ? (
+              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
                 <button
                   type="button"
-                  onClick={onToggleRingLight}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-2 py-0.5 text-[9px] sm:text-[11px] font-mono-retro font-bold rounded border-2 border-slate-900 bg-amber-300 hover:bg-amber-400 text-slate-900 shadow-[1px_1px_0px_#0f172a] flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                  title="Pilih file gambar dari perangkat"
+                >
+                  <UploadCloud className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
+                  <span>PILIH FILE</span>
+                </button>
+                {completedCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={onReset}
+                    className="px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[11px] font-mono-retro font-bold rounded border-2 border-slate-900 bg-slate-200 hover:bg-rose-200 text-slate-700 hover:text-rose-900 transition-colors flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                    title="Hapus foto terunggah dan mulai ulang"
+                  >
+                    <RotateCcw className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
+                    <span>RESET</span>
+                  </button>
+                )}
+                {/* Counter Badge */}
+                <span className="text-[9px] sm:text-[11px] font-mono-retro px-1 sm:px-2 py-0.5 rounded bg-sky-100 text-sky-800 font-black border border-slate-900 whitespace-nowrap shrink-0">
+                  {completedCount}/{activeLayout.count}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+                {/* Quick Toggle: Timer Duration (3s, 5s, 10s) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isCapturing) return;
+                    const next =
+                      timerDuration === 3 ? 5 : timerDuration === 5 ? 10 : 3;
+                    onTimerDurationChange?.(next);
+                  }}
+                  disabled={isCapturing}
+                  className="px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[11px] font-mono-retro font-bold rounded border-2 border-slate-900 bg-amber-300 hover:bg-amber-400 text-slate-900 shadow-[1px_1px_0px_#0f172a] sm:shadow-[1.5px_1.5px_0px_#0f172a] active:translate-y-0.5 transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                  title="Ganti Durasi Hitung Mundur: 3 Detik, 5 Detik, atau 10 Detik"
+                >
+                  <Timer className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
+                  <span>{timerDuration}S</span>
+                </button>
+
+                {/* Quick Toggle: SFX Audio */}
+                <button
+                  type="button"
+                  onClick={onToggleSound}
                   className={`px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[11px] font-mono-retro font-bold rounded border-2 border-slate-900 transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer whitespace-nowrap ${
-                    isRingLightOn
-                      ? "bg-amber-300 text-slate-900 shadow-[1px_1px_0px_#0f172a] sm:shadow-[1.5px_1.5px_0px_#0f172a]"
+                    isSoundEnabled
+                      ? "bg-emerald-300 text-slate-900 shadow-[1px_1px_0px_#0f172a] sm:shadow-[1.5px_1.5px_0px_#0f172a]"
                       : "bg-slate-200 hover:bg-slate-300 text-slate-700"
                   }`}
-                  title="Nyalakan / Matikan Layar Ring Light untuk menerangi wajah di ruangan redup"
+                  title="Nyalakan / Matikan Efek Suara Kamera (SFX)"
                 >
-                  <Lightbulb
-                    className={`w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5] ${isRingLightOn ? "text-amber-700 fill-amber-400" : ""}`}
-                  />
+                  {isSoundEnabled ? (
+                    <Volume2 className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
+                  ) : (
+                    <VolumeX className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
+                  )}
                   <span>
-                    <span className="hidden sm:inline">LIGHT </span>
-                    {isRingLightOn ? "ON" : "OFF"}
+                    <span className="hidden sm:inline">SFX </span>
+                    {isSoundEnabled ? "ON" : "OFF"}
                   </span>
                 </button>
 
-                {isRingLightOn && (
-                  <div className="flex items-center gap-0.5 bg-slate-900/90 p-0.5 rounded border border-slate-900">
-                    <button
-                      type="button"
-                      onClick={() => onSelectRingLightColor?.("white")}
-                      className={`w-3.5 h-3.5 rounded-full border border-slate-900 cursor-pointer ${ringLightColor === "white" ? "scale-125 ring-1 ring-amber-400" : "opacity-75"} bg-white`}
-                      title="Cool White Light"
+                {/* Quick Toggle: Screen Ring Light / Flash Simulator */}
+                <div className="flex items-center gap-0.5 sm:gap-1">
+                  <button
+                    type="button"
+                    onClick={onToggleRingLight}
+                    className={`px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[11px] font-mono-retro font-bold rounded border-2 border-slate-900 transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer whitespace-nowrap ${
+                      isRingLightOn
+                        ? "bg-amber-300 text-slate-900 shadow-[1px_1px_0px_#0f172a] sm:shadow-[1.5px_1.5px_0px_#0f172a]"
+                        : "bg-slate-200 hover:bg-slate-300 text-slate-700"
+                    }`}
+                    title="Nyalakan / Matikan Layar Ring Light untuk menerangi wajah di ruangan redup"
+                  >
+                    <Lightbulb
+                      className={`w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5] ${isRingLightOn ? "text-amber-700 fill-amber-400" : ""}`}
                     />
-                    <button
-                      type="button"
-                      onClick={() => onSelectRingLightColor?.("warm")}
-                      className={`w-3.5 h-3.5 rounded-full border border-slate-900 cursor-pointer ${ringLightColor === "warm" ? "scale-125 ring-1 ring-amber-400" : "opacity-75"} bg-amber-200`}
-                      title="Warm Golden Light"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => onSelectRingLightColor?.("rose")}
-                      className={`w-3.5 h-3.5 rounded-full border border-slate-900 cursor-pointer ${ringLightColor === "rose" ? "scale-125 ring-1 ring-amber-400" : "opacity-75"} bg-pink-200`}
-                      title="Soft Rose Light"
-                    />
-                  </div>
-                )}
-              </div>
+                    <span>
+                      <span className="hidden sm:inline">LIGHT </span>
+                      {isRingLightOn ? "ON" : "OFF"}
+                    </span>
+                  </button>
 
-              {/* Quick Toggle: Hands-Free Gesture Trigger (5 Jari / Open Palm) */}
-              <button
-                type="button"
-                onClick={onToggleGesture}
-                className={`px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[11px] font-mono-retro font-bold rounded border-2 border-slate-900 transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer whitespace-nowrap ${
-                  isGestureEnabled
-                    ? "bg-emerald-400 text-slate-950 shadow-[1px_1px_0px_#0f172a] sm:shadow-[1.5px_1.5px_0px_#0f172a]"
-                    : "bg-slate-200 hover:bg-slate-300 text-slate-700"
-                }`}
-                title="Hands-Free Gesture: Bentangkan 5 jari Anda di depan kamera untuk otomatis memotret tanpa sentuh"
-              >
-                <Hand className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
-                <span>
-                  <span className="hidden sm:inline">GESTURE </span>
-                  {isGestureEnabled ? "ON" : "OFF"}
+                  {isRingLightOn && (
+                    <div className="flex items-center gap-0.5 bg-slate-900/90 p-0.5 rounded border border-slate-900">
+                      <button
+                        type="button"
+                        onClick={() => onSelectRingLightColor?.("white")}
+                        className={`w-3.5 h-3.5 rounded-full border border-slate-900 cursor-pointer ${ringLightColor === "white" ? "scale-125 ring-1 ring-amber-400" : "opacity-75"} bg-white`}
+                        title="Cool White Light"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => onSelectRingLightColor?.("warm")}
+                        className={`w-3.5 h-3.5 rounded-full border border-slate-900 cursor-pointer ${ringLightColor === "warm" ? "scale-125 ring-1 ring-amber-400" : "opacity-75"} bg-amber-200`}
+                        title="Warm Golden Light"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => onSelectRingLightColor?.("rose")}
+                        className={`w-3.5 h-3.5 rounded-full border border-slate-900 cursor-pointer ${ringLightColor === "rose" ? "scale-125 ring-1 ring-amber-400" : "opacity-75"} bg-pink-200`}
+                        title="Soft Rose Light"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick Toggle: Hands-Free Gesture Trigger (5 Jari / Open Palm) */}
+                <button
+                  type="button"
+                  onClick={onToggleGesture}
+                  className={`px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[11px] font-mono-retro font-bold rounded border-2 border-slate-900 transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer whitespace-nowrap ${
+                    isGestureEnabled
+                      ? "bg-emerald-400 text-slate-950 shadow-[1px_1px_0px_#0f172a] sm:shadow-[1.5px_1.5px_0px_#0f172a]"
+                      : "bg-slate-200 hover:bg-slate-300 text-slate-700"
+                  }`}
+                  title="Hands-Free Gesture: Bentangkan 5 jari Anda di depan kamera untuk otomatis memotret tanpa sentuh"
+                >
+                  <Hand className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
+                  <span>
+                    <span className="hidden sm:inline">GESTURE </span>
+                    {isGestureEnabled ? "ON" : "OFF"}
+                  </span>
+                </button>
+
+                {/* Quick Toggle: Kiosk / Fullscreen Mode */}
+                <button
+                  type="button"
+                  onClick={onToggleKiosk}
+                  className={`px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[11px] font-mono-retro font-bold rounded border-2 border-slate-900 transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer whitespace-nowrap ${
+                    isKioskMode
+                      ? "bg-fuchsia-400 text-slate-950 shadow-[1px_1px_0px_#0f172a] sm:shadow-[1.5px_1.5px_0px_#0f172a]"
+                      : "bg-slate-200 hover:bg-slate-300 text-slate-700"
+                  }`}
+                  title="Mode Layar Penuh (Fullscreen)"
+                >
+                  <Maximize className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
+                  <span className="hidden sm:inline">FULL</span>
+                </button>
+
+                {/* Counter Badge */}
+                <span className="text-[9px] sm:text-[11px] font-mono-retro px-1 sm:px-2 py-0.5 rounded bg-sky-100 text-sky-800 font-black border border-slate-900 whitespace-nowrap shrink-0">
+                  {completedCount}/{activeLayout.count}
                 </span>
-              </button>
-
-              {/* Quick Toggle: Kiosk / Fullscreen Mode */}
-              <button
-                type="button"
-                onClick={onToggleKiosk}
-                className={`px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[11px] font-mono-retro font-bold rounded border-2 border-slate-900 transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer whitespace-nowrap ${
-                  isKioskMode
-                    ? "bg-fuchsia-400 text-slate-950 shadow-[1px_1px_0px_#0f172a] sm:shadow-[1.5px_1.5px_0px_#0f172a]"
-                    : "bg-slate-200 hover:bg-slate-300 text-slate-700"
-                }`}
-                title="Mode Layar Penuh (Fullscreen)"
-              >
-                <Maximize className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
-                <span className="hidden sm:inline">FULL</span>
-              </button>
-
-              {/* Counter Badge */}
-              <span className="text-[9px] sm:text-[11px] font-mono-retro px-1 sm:px-2 py-0.5 rounded bg-sky-100 text-sky-800 font-black border border-slate-900 whitespace-nowrap shrink-0">
-                {completedCount}/{activeLayout.count}
-              </span>
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Mode Foto Ulang Pose Tertentu (Retake Mode Banner) */}
@@ -440,10 +539,13 @@ const WebcamComponent = forwardRef(
             </div>
           )}
 
-          {/* Camera Container with optional Luminous Ring Light Frame */}
+          {/* Camera / Dropzone Container */}
           <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
             className={`relative aspect-[4/3] w-full rounded-md overflow-hidden border-2 border-slate-900 bg-slate-950 shadow-inner transition-all duration-300 ${
-              isRingLightOn
+              isRingLightOn && inputSource !== "upload"
                 ? ringLightColor === "warm"
                   ? "ring-4 sm:ring-8 ring-amber-300 shadow-[0_0_35px_rgba(253,224,71,0.85)]"
                   : ringLightColor === "rose"
@@ -452,267 +554,369 @@ const WebcamComponent = forwardRef(
                 : ""
             }`}
           >
-            {/* Luminous Inner Glow when Ring Light is Active */}
-            {isRingLightOn && (
-              <div
-                className={`absolute inset-0 pointer-events-none z-10 border-4 sm:border-8 transition-all duration-300 ${
-                  ringLightColor === "warm"
-                    ? "border-amber-200/60 shadow-[inset_0_0_35px_rgba(254,240,138,0.6)]"
-                    : ringLightColor === "rose"
-                      ? "border-pink-200/60 shadow-[inset_0_0_35px_rgba(251,207,232,0.6)]"
-                      : "border-white/70 shadow-[inset_0_0_35px_rgba(255,255,255,0.7)]"
-                }`}
-              />
-            )}
-            <Webcam
-              ref={ref}
-              audio={false}
-              screenshotFormat="image/jpeg"
-              videoConstraints={{
-                facingMode: currentFacingMode,
-                width: { ideal: 1280 },
-                height: { ideal: 960 },
-              }}
-              onUserMediaError={handleUserMediaError}
-              className={`w-full h-full object-cover transition-all duration-300 ${isMirrored ? "-scale-x-100" : ""} ${getFilterStyle(filter)}`}
+            {/* Hidden File Input for Image Upload */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple={retakeIndex === null}
+              className="hidden"
+              onChange={handleFileInputChange}
             />
 
-            {/* Live Filter Artistic Overlays */}
-            {filter === "lightleak" && (
+            {inputSource === "upload" ? (
               <div
-                className="absolute inset-0 pointer-events-none z-10"
-                style={{
-                  background:
-                    "radial-gradient(circle at 0% 0%, rgba(255, 125, 40, 0.45) 0%, rgba(255, 175, 60, 0.28) 35%, rgba(255, 90, 120, 0.12) 65%, transparent 85%)",
-                  mixBlendMode: "screen",
-                }}
-              />
-            )}
-            {filter === "filmgrain" && (
-              <div
-                className="absolute inset-0 pointer-events-none z-10 opacity-30 mix-blend-overlay"
-                style={{
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-                }}
-              />
-            )}
+                onClick={() => fileInputRef.current?.click()}
+                className={`w-full h-full p-3 sm:p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 select-none ${
+                  isDragging
+                    ? "bg-amber-400/20 border-4 border-amber-400"
+                    : "bg-slate-950 hover:bg-slate-900/90"
+                }`}
+              >
+                {/* Visual Dropzone Box */}
+                <div className="w-full h-full border-2 border-dashed border-slate-700 hover:border-amber-400 rounded-lg p-3 sm:p-6 flex flex-col items-center justify-center gap-2 sm:gap-3 transition-colors group">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-amber-400 border-2 border-slate-900 shadow-[3px_3px_0px_#0f172a] flex items-center justify-center text-slate-950 transition-transform group-hover:scale-110">
+                    <UploadCloud className="w-6 h-6 sm:w-8 sm:h-8 stroke-[2.5]" />
+                  </div>
 
-            {/* Flash Screen Animation */}
-            {isFlashing && (
-              <div className="absolute inset-0 bg-white z-30 animate-shutter-flash pointer-events-none" />
-            )}
+                  <div>
+                    <h3 className="font-syne font-black text-xs sm:text-base text-white tracking-wide">
+                      {retakeIndex !== null
+                        ? `KLIK / TARIK FOTO PENGGANTI (POSE #${retakeIndex + 1})`
+                        : isSessionComplete
+                          ? "KLIK UNTUK GANTI / UPLOAD ULANG FOTO"
+                          : "TARIK & LEPAS FOTO DI SINI"}
+                    </h3>
+                    <p className="font-mono-retro text-[10px] sm:text-xs text-slate-300 mt-0.5">
+                      atau klik untuk memilih gambar dari galeri perangkat
+                    </p>
+                  </div>
 
-            {/* Active Countdown Overlay */}
-            {countdown !== null && (
-              <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/40 backdrop-blur-xs">
-                <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl bg-amber-300 border-4 border-slate-900 shadow-[6px_6px_0px_#0f172a] flex items-center justify-center animate-countdown-pop">
-                  <span className="font-syne font-black text-4xl sm:text-6xl text-slate-900">
-                    {countdown}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Live Video Recording 10s HUD */}
-            {isRecordingVideo && (
-              <div className="absolute inset-x-0 bottom-3 px-3 sm:px-4 z-20 flex flex-col gap-1.5 items-center">
-                <div className="flex items-center justify-between w-full max-w-sm bg-slate-950/90 text-white px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg border-2 border-red-500 shadow-xl">
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-                    <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-red-500 animate-ping"></span>
-                    <span className="font-mono-retro text-[10px] sm:text-xs font-bold text-red-400">
-                      REC ({videoRecordProgress.toFixed(1)}s / 10.0s)
+                  <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-1.5 text-[9px] sm:text-[10px] font-mono-retro font-bold">
+                    <span className="px-2 py-0.5 rounded bg-slate-800 text-amber-300 border border-slate-700">
+                      JPG, PNG, WEBP
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-slate-800 text-sky-300 border border-slate-700">
+                      {completedCount}/{activeLayout.count} Pose Terisi
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-slate-800 text-emerald-300 border border-slate-700">
+                      Auto Center-Crop
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={onStopVideoRecording}
-                    className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded bg-red-600 hover:bg-red-500 text-white font-mono-retro text-[9px] sm:text-[10px] font-bold cursor-pointer transition-colors shadow-xs"
-                  >
-                    STOP
-                  </button>
-                </div>
-                {/* Progress Bar 0 to 10s */}
-                <div className="w-full max-w-sm h-2 sm:h-2.5 bg-slate-900/90 rounded-full overflow-hidden border border-slate-700">
-                  <div
-                    className="h-full bg-gradient-to-r from-amber-400 via-rose-500 to-red-600 transition-all duration-100"
-                    style={{
-                      width: `${Math.min(100, (videoRecordProgress / 10) * 100)}%`,
-                    }}
-                  ></div>
-                </div>
-              </div>
-            )}
 
-            {/* Viewfinder OSD Overlays (Top) */}
-            <div className="absolute top-2 sm:top-3 left-2 sm:left-3 flex items-center gap-1 sm:gap-1.5 bg-slate-950/80 text-white px-1.5 sm:px-2 py-0.5 rounded font-mono-retro text-[9px] sm:text-[10px] tracking-wider border border-white/20 z-20">
-              <span
-                className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${isRecordingVideo ? "bg-red-500 animate-ping" : "bg-red-500 animate-pulse"}`}
-              ></span>
-              <span>{isRecordingVideo ? "REC 10S" : "LIVE // 60FPS"}</span>
-            </div>
-
-            <div className="absolute top-2 sm:top-3 right-2 sm:right-3 flex items-center gap-1 z-20">
-              <span className="hidden xs:inline-block bg-slate-950/80 text-amber-400 px-1.5 py-0.5 rounded font-mono-retro text-[9px] sm:text-[10px] tracking-wider border border-white/20">
-                ISO 400
-              </span>
-              <span className="bg-slate-950/80 text-sky-300 px-1.5 py-0.5 rounded font-mono-retro text-[9px] sm:text-[10px] tracking-wider border border-white/20">
-                <span className="hidden xs:inline">CAM: </span>
-                {currentFacingMode === "user" ? "FRONT" : "BACK"}
-              </span>
-              <span
-                className={`px-1.5 py-0.5 rounded font-mono-retro text-[9px] sm:text-[10px] tracking-wider border ${
-                  isMirrored
-                    ? "bg-emerald-950/85 text-emerald-400 font-bold border-emerald-500/40"
-                    : "bg-slate-950/80 text-slate-400 border-white/20"
-                }`}
-              >
-                <span className="hidden xs:inline">MIRROR: </span>
-                {isMirrored ? "ON" : "OFF"}
-              </span>
-            </div>
-
-            <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-3 bg-slate-950/80 text-slate-300 px-1.5 py-0.5 rounded font-mono-retro text-[9px] sm:text-[10px] border border-white/20 z-20">
-              <span className="hidden xs:inline">{currentDateTime}</span>
-              <span className="xs:hidden">
-                {currentDateTime.split(" ")[1] || currentDateTime}
-              </span>
-            </div>
-
-            {/* Viewfinder OSD Interactive Controls (Bottom Right) */}
-            <div className="absolute bottom-2 sm:bottom-3 right-2 sm:right-3 flex items-center gap-1 z-20">
-              <button
-                type="button"
-                onClick={() => setShowGrid((prev) => !prev)}
-                className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded font-mono-retro text-[9px] sm:text-[10px] font-bold border transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer backdrop-blur-xs ${
-                  showGrid
-                    ? "bg-amber-400/90 text-slate-950 border-amber-300 shadow-sm"
-                    : "bg-slate-950/80 text-slate-300 hover:text-white border-white/20"
-                }`}
-                title="Nyalakan / Matikan Grid Komposisi"
-              >
-                <LayoutGrid className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
-                <span>
-                  <span className="hidden xs:inline">GRID </span>
-                  {showGrid ? "ON" : "OFF"}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleToggleFacingMode}
-                disabled={isCapturing}
-                className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded font-mono-retro text-[9px] sm:text-[10px] font-bold border border-white/20 bg-slate-950/80 hover:bg-slate-900 text-sky-300 hover:text-sky-200 transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed backdrop-blur-xs shadow-sm"
-                title="Ganti Kamera Depan / Belakang"
-              >
-                <RefreshCw className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
-                <span>{currentFacingMode === "user" ? "DEP" : "BLK"}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={onToggleMirror}
-                className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded font-mono-retro text-[9px] sm:text-[10px] font-bold border transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer backdrop-blur-xs ${
-                  isMirrored
-                    ? "bg-emerald-400/90 text-slate-950 border-emerald-300 shadow-sm"
-                    : "bg-slate-950/80 text-slate-300 hover:text-white border-white/20"
-                }`}
-                title="Nyalakan / Matikan Mode Mirror (Cermin)"
-              >
-                <FlipHorizontal2 className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
-                <span>
-                  <span className="hidden xs:inline">MIRROR </span>
-                  {isMirrored ? "ON" : "OFF"}
-                </span>
-              </button>
-            </div>
-
-            {/* Viewfinder Composition 3x3 Grid Overlay & Center Alignment Guide */}
-            {showGrid ? (
-              <div className="absolute inset-0 pointer-events-none z-10 select-none">
-                {/* Rule of Thirds Vertical Lines */}
-                <div className="absolute top-0 bottom-0 left-1/3 w-px bg-white/35 shadow-[0_0_1px_rgba(0,0,0,0.8)]" />
-                <div className="absolute top-0 bottom-0 left-2/3 w-px bg-white/35 shadow-[0_0_1px_rgba(0,0,0,0.8)]" />
-
-                {/* Rule of Thirds Horizontal Lines */}
-                <div className="absolute left-0 right-0 top-1/3 h-px bg-white/35 shadow-[0_0_1px_rgba(0,0,0,0.8)]" />
-                <div className="absolute left-0 right-0 top-2/3 h-px bg-white/35 shadow-[0_0_1px_rgba(0,0,0,0.8)]" />
-
-                {/* 4 Intersection Crosshairs (+) */}
-                <div className="absolute top-1/3 left-1/3 -translate-x-1/2 -translate-y-1/2 text-white/60 font-mono text-xs leading-none">
-                  +
-                </div>
-                <div className="absolute top-1/3 left-2/3 -translate-x-1/2 -translate-y-1/2 text-white/60 font-mono text-xs leading-none">
-                  +
-                </div>
-                <div className="absolute top-2/3 left-1/3 -translate-x-1/2 -translate-y-1/2 text-white/60 font-mono text-xs leading-none">
-                  +
-                </div>
-                <div className="absolute top-2/3 left-2/3 -translate-x-1/2 -translate-y-1/2 text-white/60 font-mono text-xs leading-none">
-                  +
-                </div>
-
-                {/* Outer Edge Alignment Ticks */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-3 bg-amber-400/80 shadow-sm" />
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0.5 h-3 bg-amber-400/80 shadow-sm" />
-                <div className="absolute top-1/2 left-0 -translate-y-1/2 h-0.5 w-3 bg-amber-400/80 shadow-sm" />
-                <div className="absolute top-1/2 right-0 -translate-y-1/2 h-0.5 w-3 bg-amber-400/80 shadow-sm" />
-
-                {/* Center Target Box & Head / Face Center Alignment Guide */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <div className="relative w-20 h-20 sm:w-28 sm:h-28 border border-white/40 rounded-sm flex items-center justify-center">
-                    {/* Corner L-Brackets in Amber */}
-                    <div className="absolute -top-1 -left-1 w-3 h-3 border-t-2 border-l-2 border-amber-400" />
-                    <div className="absolute -top-1 -right-1 w-3 h-3 border-t-2 border-r-2 border-amber-400" />
-                    <div className="absolute -bottom-1 -left-1 w-3 h-3 border-b-2 border-l-2 border-amber-400" />
-                    <div className="absolute -bottom-1 -right-1 w-3 h-3 border-b-2 border-r-2 border-amber-400" />
-
-                    {/* Center Crosshair + Glowing Center Dot */}
-                    <div className="w-8 h-8 flex items-center justify-center relative">
-                      <div className="absolute w-full h-px bg-amber-400/70" />
-                      <div className="absolute h-full w-px bg-amber-400/70" />
-                      <div className="w-2.5 h-2.5 bg-amber-400 rounded-full shadow-[0_0_6px_rgba(251,191,36,0.9)] z-10" />
-                    </div>
+                  <div className="mt-1">
+                    <span className="brutal-btn px-3 py-1 sm:px-4 sm:py-1.5 rounded-md bg-amber-400 hover:bg-amber-300 text-slate-900 font-syne font-black text-[11px] sm:text-xs shadow-[2px_2px_0px_#0f172a] inline-flex items-center gap-1.5">
+                      <ImagePlus className="w-3.5 h-3.5" />
+                      <span>
+                        {retakeIndex !== null
+                          ? "PILIH GAMBAR PENGGANTI"
+                          : isSessionComplete
+                            ? "PILIH FILE BARU"
+                            : completedCount > 0
+                              ? `TAMBAH SISA FOTO (${activeLayout.count - completedCount})`
+                              : "PILIH FILE FOTO"}
+                      </span>
+                    </span>
                   </div>
-                  {/* Center Label Badge */}
-                  <span className="mt-1 font-mono-retro text-[9px] font-bold tracking-widest text-amber-300 bg-slate-950/70 px-1.5 py-0.5 rounded border border-amber-400/30">
-                    [ CENTER ]
-                  </span>
                 </div>
               </div>
             ) : (
-              /* Minimal Center Focus Crosshair when Grid is toggled OFF */
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30">
-                <div className="w-10 h-10 border border-white/60 rounded-xs flex items-center justify-center">
-                  <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+              <>
+                {/* Luminous Inner Glow when Ring Light is Active */}
+                {isRingLightOn && (
+                  <div
+                    className={`absolute inset-0 pointer-events-none z-10 border-4 sm:border-8 transition-all duration-300 ${
+                      ringLightColor === "warm"
+                        ? "border-amber-200/60 shadow-[inset_0_0_35px_rgba(254,240,138,0.6)]"
+                        : ringLightColor === "rose"
+                          ? "border-pink-200/60 shadow-[inset_0_0_35px_rgba(251,207,232,0.6)]"
+                          : "border-white/70 shadow-[inset_0_0_35px_rgba(255,255,255,0.7)]"
+                    }`}
+                  />
+                )}
+                <Webcam
+                  ref={ref}
+                  audio={false}
+                  screenshotFormat="image/jpeg"
+                  videoConstraints={{
+                    facingMode: currentFacingMode,
+                    width: { ideal: 1280 },
+                    height: { ideal: 960 },
+                  }}
+                  onUserMediaError={handleUserMediaError}
+                  className={`w-full h-full object-cover transition-all duration-300 ${isMirrored ? "-scale-x-100" : ""} ${getFilterStyle(filter)}`}
+                />
+
+                {/* Live Filter Artistic Overlays */}
+                {filter === "lightleak" && (
+                  <div
+                    className="absolute inset-0 pointer-events-none z-10"
+                    style={{
+                      background:
+                        "radial-gradient(circle at 0% 0%, rgba(255, 125, 40, 0.45) 0%, rgba(255, 175, 60, 0.28) 35%, rgba(255, 90, 120, 0.12) 65%, transparent 85%)",
+                      mixBlendMode: "screen",
+                    }}
+                  />
+                )}
+                {filter === "filmgrain" && (
+                  <div
+                    className="absolute inset-0 pointer-events-none z-10 opacity-30 mix-blend-overlay"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+                    }}
+                  />
+                )}
+
+                {/* Flash Screen Animation */}
+                {isFlashing && (
+                  <div className="absolute inset-0 bg-white z-30 animate-shutter-flash pointer-events-none" />
+                )}
+
+                {/* Active Countdown Overlay */}
+                {countdown !== null && (
+                  <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/40 backdrop-blur-xs">
+                    <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl bg-amber-300 border-4 border-slate-900 shadow-[6px_6px_0px_#0f172a] flex items-center justify-center animate-countdown-pop">
+                      <span className="font-syne font-black text-4xl sm:text-6xl text-slate-900">
+                        {countdown}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Live Video Recording 15s HUD */}
+                {isRecordingVideo && (
+                  <div className="absolute inset-x-0 bottom-3 px-3 sm:px-4 z-20 flex flex-col gap-1.5 items-center">
+                    <div className="flex items-center justify-between w-full max-w-sm bg-slate-950/90 text-white px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg border-2 border-red-500 shadow-xl">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-red-500 animate-ping"></span>
+                        <span className="font-mono-retro text-[10px] sm:text-xs font-bold text-red-400">
+                          REC ({videoRecordProgress.toFixed(1)}s / 15.0s)
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={onStopVideoRecording}
+                        className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded bg-red-600 hover:bg-red-500 text-white font-mono-retro text-[9px] sm:text-[10px] font-bold cursor-pointer transition-colors shadow-xs"
+                      >
+                        STOP
+                      </button>
+                    </div>
+                    {/* Progress Bar 0 to 15s */}
+                    <div className="w-full max-w-sm h-2 sm:h-2.5 bg-slate-900/90 rounded-full overflow-hidden border border-slate-700">
+                      <div
+                        className="h-full bg-gradient-to-r from-amber-400 via-rose-500 to-red-600 transition-all duration-100"
+                        style={{
+                          width: `${Math.min(100, (videoRecordProgress / 15) * 100)}%`,
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Viewfinder OSD Overlays (Top) */}
+                <div className="absolute top-2 sm:top-3 left-2 sm:left-3 flex items-center gap-1 sm:gap-1.5 bg-slate-950/80 text-white px-1.5 sm:px-2 py-0.5 rounded font-mono-retro text-[9px] sm:text-[10px] tracking-wider border border-white/20 z-20">
+                  <span
+                    className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${isRecordingVideo ? "bg-red-500 animate-ping" : "bg-red-500 animate-pulse"}`}
+                  ></span>
+                  <span>{isRecordingVideo ? "REC 15S" : "LIVE // 60FPS"}</span>
                 </div>
-              </div>
-            )}
 
-            {/* Hands-Free Gesture Detection HUD Feedback */}
-            {isGestureEnabled && isGestureDetected && (
-              <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-emerald-400 border-2 border-slate-900 text-slate-950 px-3.5 py-1.5 rounded-full font-mono-retro text-[10px] sm:text-xs font-black shadow-[2px_2px_0px_#0f172a] animate-bounce flex items-center gap-1.5 z-30 pointer-events-none">
-                <Hand className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>ISYARAT 5 JARI TERDETEKSI: MEMULAI...</span>
-              </div>
-            )}
+                <div className="absolute top-2 sm:top-3 right-2 sm:right-3 flex items-center gap-1 z-20">
+                  <span className="hidden xs:inline-block bg-slate-950/80 text-amber-400 px-1.5 py-0.5 rounded font-mono-retro text-[9px] sm:text-[10px] tracking-wider border border-white/20">
+                    ISO 400
+                  </span>
+                  <span className="bg-slate-950/80 text-sky-300 px-1.5 py-0.5 rounded font-mono-retro text-[9px] sm:text-[10px] tracking-wider border border-white/20">
+                    <span className="hidden xs:inline">CAM: </span>
+                    {currentFacingMode === "user" ? "FRONT" : "BACK"}
+                  </span>
+                  <span
+                    className={`px-1.5 py-0.5 rounded font-mono-retro text-[9px] sm:text-[10px] tracking-wider border ${
+                      isMirrored
+                        ? "bg-emerald-950/85 text-emerald-400 font-bold border-emerald-500/40"
+                        : "bg-slate-950/80 text-slate-400 border-white/20"
+                    }`}
+                  >
+                    <span className="hidden xs:inline">MIRROR: </span>
+                    {isMirrored ? "ON" : "OFF"}
+                  </span>
+                </div>
 
-            {isGestureEnabled && !isGestureDetected && !isCapturing && (
-              <div className="absolute bottom-2 left-2 bg-slate-950/85 backdrop-blur-xs text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/50 font-mono-retro text-[9px] font-bold flex items-center gap-1 z-20 pointer-events-none">
-                <Hand className="w-2.5 h-2.5 stroke-[2.5]" />
-                <span>
-                  {retakeIndex !== null
-                    ? `BENTANGKAN 5 JARI UNTUK RETAKE POSE ${retakeIndex + 1}`
-                    : isSessionComplete
-                    ? "SESI SELESAI • RESET UNTUK FOTO BARU"
-                    : "BENTANGKAN 5 JARI UNTUK MEMOTRET"}
-                </span>
-              </div>
+                <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-3 bg-slate-950/80 text-slate-300 px-1.5 py-0.5 rounded font-mono-retro text-[9px] sm:text-[10px] border border-white/20 z-20">
+                  <span className="hidden xs:inline">{currentDateTime}</span>
+                  <span className="xs:hidden">
+                    {currentDateTime.split(" ")[1] || currentDateTime}
+                  </span>
+                </div>
+
+                {/* Viewfinder OSD Interactive Controls (Bottom Right) */}
+                <div className="absolute bottom-2 sm:bottom-3 right-2 sm:right-3 flex items-center gap-1 z-20">
+                  <button
+                    type="button"
+                    onClick={() => setShowGrid((prev) => !prev)}
+                    className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded font-mono-retro text-[9px] sm:text-[10px] font-bold border transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer backdrop-blur-xs ${
+                      showGrid
+                        ? "bg-amber-400/90 text-slate-950 border-amber-300 shadow-sm"
+                        : "bg-slate-950/80 text-slate-300 hover:text-white border-white/20"
+                    }`}
+                    title="Nyalakan / Matikan Grid Komposisi"
+                  >
+                    <LayoutGrid className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
+                    <span>
+                      <span className="hidden xs:inline">GRID </span>
+                      {showGrid ? "ON" : "OFF"}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleToggleFacingMode}
+                    disabled={isCapturing}
+                    className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded font-mono-retro text-[9px] sm:text-[10px] font-bold border border-white/20 bg-slate-950/80 hover:bg-slate-900 text-sky-300 hover:text-sky-200 transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed backdrop-blur-xs shadow-sm"
+                    title="Ganti Kamera Depan / Belakang"
+                  >
+                    <RefreshCw className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
+                    <span>{currentFacingMode === "user" ? "DEP" : "BLK"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onToggleMirror}
+                    className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded font-mono-retro text-[9px] sm:text-[10px] font-bold border transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer backdrop-blur-xs ${
+                      isMirrored
+                        ? "bg-emerald-400/90 text-slate-950 border-emerald-300 shadow-sm"
+                        : "bg-slate-950/80 text-slate-300 hover:text-white border-white/20"
+                    }`}
+                    title="Nyalakan / Matikan Mode Mirror (Cermin)"
+                  >
+                    <FlipHorizontal2 className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
+                    <span>
+                      <span className="hidden xs:inline">MIRROR </span>
+                      {isMirrored ? "ON" : "OFF"}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Camera Viewfinder Rule-of-Thirds Grid */}
+                {showGrid ? (
+                  <div className="absolute inset-0 pointer-events-none z-10">
+                    {/* Vertical Third Lines */}
+                    <div className="absolute top-0 bottom-0 left-1/3 w-px bg-white/25 shadow-sm" />
+                    <div className="absolute top-0 bottom-0 left-2/3 w-px bg-white/25 shadow-sm" />
+
+                    {/* Horizontal Third Lines */}
+                    <div className="absolute left-0 right-0 top-1/3 h-px bg-white/25 shadow-sm" />
+                    <div className="absolute left-0 right-0 top-2/3 h-px bg-white/25 shadow-sm" />
+
+                    {/* Golden Intersection Crosshairs (+) */}
+                    <div className="absolute top-1/3 left-1/3 -translate-x-1/2 -translate-y-1/2 text-white/60 font-mono text-xs leading-none">
+                      +
+                    </div>
+                    <div className="absolute top-1/3 left-2/3 -translate-x-1/2 -translate-y-1/2 text-white/60 font-mono text-xs leading-none">
+                      +
+                    </div>
+                    <div className="absolute top-2/3 left-1/3 -translate-x-1/2 -translate-y-1/2 text-white/60 font-mono text-xs leading-none">
+                      +
+                    </div>
+                    <div className="absolute top-2/3 left-2/3 -translate-x-1/2 -translate-y-1/2 text-white/60 font-mono text-xs leading-none">
+                      +
+                    </div>
+
+                    {/* Outer Edge Alignment Ticks */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-3 bg-amber-400/80 shadow-sm" />
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0.5 h-3 bg-amber-400/80 shadow-sm" />
+                    <div className="absolute top-1/2 left-0 -translate-y-1/2 h-0.5 w-3 bg-amber-400/80 shadow-sm" />
+                    <div className="absolute top-1/2 right-0 -translate-y-1/2 h-0.5 w-3 bg-amber-400/80 shadow-sm" />
+
+                    {/* Center Target Box & Head / Face Center Alignment Guide */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <div className="relative w-20 h-20 sm:w-28 sm:h-28 border border-white/40 rounded-sm flex items-center justify-center">
+                        {/* Corner L-Brackets in Amber */}
+                        <div className="absolute -top-1 -left-1 w-3 h-3 border-t-2 border-l-2 border-amber-400" />
+                        <div className="absolute -top-1 -right-1 w-3 h-3 border-t-2 border-r-2 border-amber-400" />
+                        <div className="absolute -bottom-1 -left-1 w-3 h-3 border-b-2 border-l-2 border-amber-400" />
+                        <div className="absolute -bottom-1 -right-1 w-3 h-3 border-b-2 border-r-2 border-amber-400" />
+
+                        {/* Center Crosshair + Glowing Center Dot */}
+                        <div className="w-8 h-8 flex items-center justify-center relative">
+                          <div className="absolute w-full h-px bg-amber-400/70" />
+                          <div className="absolute h-full w-px bg-amber-400/70" />
+                          <div className="w-2.5 h-2.5 bg-amber-400 rounded-full shadow-[0_0_6px_rgba(251,191,36,0.9)] z-10" />
+                        </div>
+                      </div>
+                      {/* Center Label Badge */}
+                      <span className="mt-1 font-mono-retro text-[9px] font-bold tracking-widest text-amber-300 bg-slate-950/70 px-1.5 py-0.5 rounded border border-amber-400/30">
+                        [ CENTER ]
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  /* Minimal Center Focus Crosshair when Grid is toggled OFF */
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30">
+                    <div className="w-10 h-10 border border-white/60 rounded-xs flex items-center justify-center">
+                      <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Hands-Free Gesture Detection HUD Feedback */}
+                {isGestureEnabled && isGestureDetected && (
+                  <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-emerald-400 border-2 border-slate-900 text-slate-950 px-3.5 py-1.5 rounded-full font-mono-retro text-[10px] sm:text-xs font-black shadow-[2px_2px_0px_#0f172a] animate-bounce flex items-center gap-1.5 z-30 pointer-events-none">
+                    <Hand className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>ISYARAT 5 JARI TERDETEKSI: MEMULAI...</span>
+                  </div>
+                )}
+
+                {isGestureEnabled && !isGestureDetected && !isCapturing && (
+                  <div className="absolute bottom-2 left-2 bg-slate-950/85 backdrop-blur-xs text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/50 font-mono-retro text-[9px] font-bold flex items-center gap-1 z-20 pointer-events-none">
+                    <Hand className="w-2.5 h-2.5 stroke-[2.5]" />
+                    <span>
+                      {retakeIndex !== null
+                        ? `BENTANGKAN 5 JARI UNTUK RETAKE POSE ${retakeIndex + 1}`
+                        : isSessionComplete
+                          ? "SESI SELESAI • RESET UNTUK FOTO BARU"
+                          : "BENTANGKAN 5 JARI UNTUK MEMOTRET"}
+                    </span>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
           {/* Viewfinder Main Action Buttons */}
           <div className="mt-2.5 sm:mt-4 flex flex-wrap items-center gap-2 sm:gap-3">
-            {retakeIndex !== null ? (
+            {inputSource === "upload" ? (
+              retakeIndex !== null ? (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex-1 min-w-0 brutal-btn py-2.5 sm:py-3.5 px-3 sm:px-6 rounded-md font-syne font-extrabold text-xs sm:text-base tracking-wide flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer bg-amber-400 hover:bg-amber-300 text-slate-900 shadow-[3px_3px_0px_#0f172a]"
+                >
+                  <UploadCloud className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5] shrink-0" />
+                  <span className="truncate">
+                    UPLOAD FOTO PENGGANTI (POSE #{retakeIndex + 1})
+                  </span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`flex-1 min-w-0 brutal-btn py-2.5 sm:py-3.5 px-3 sm:px-6 rounded-md font-syne font-extrabold text-xs sm:text-base tracking-wide flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
+                    isSessionComplete
+                      ? "bg-emerald-400 text-slate-900 hover:bg-emerald-300"
+                      : "bg-amber-400 hover:bg-amber-300 text-slate-900 shadow-[3px_3px_0px_#0f172a]"
+                  }`}
+                >
+                  <UploadCloud className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5] shrink-0" />
+                  <span className="truncate">
+                    {isSessionComplete
+                      ? "GANTI / UPLOAD ULANG FOTO"
+                      : completedCount > 0
+                        ? `UPLOAD SISA FOTO (${activeLayout.count - completedCount} POSE LAGI)`
+                        : `PILIH FOTO DARI GALERI (${activeLayout.count} FOTO)`}
+                  </span>
+                </button>
+              )
+            ) : retakeIndex !== null ? (
               <button
                 onClick={() => onStartRetake?.(retakeIndex)}
                 disabled={isCapturing}
@@ -754,7 +958,7 @@ const WebcamComponent = forwardRef(
                           ? "REKAM ULANG VIDEO"
                           : "AMBIL FOTO LAGI"
                         : captureMode === "video"
-                          ? `MULAI REKAM VIDEO (${activeLayout.count}x10s)`
+                          ? `MULAI REKAM VIDEO (${activeLayout.count}x15s)`
                           : `MULAI FOTO (${activeLayout.count} POSE)`}
                 </span>
               </button>

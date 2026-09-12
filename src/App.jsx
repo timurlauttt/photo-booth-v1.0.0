@@ -81,13 +81,15 @@ function App() {
 
   // Capture Mode: 'photo' (PNG) or 'video' (MP4, max 5s per slot)
   const [captureMode, setCaptureMode] = useState("photo");
+  // Input Source: 'camera' (webcam) or 'upload' (file picker / dropzone)
+  const [inputSource, setInputSource] = useState("camera");
   const [videoClips, setVideoClips] = useState([]);
   const videoClipsRef = useRef([]);
   useEffect(() => {
     videoClipsRef.current = videoClips;
   }, [videoClips]);
   const [isRecordingVideo, setIsRecordingVideo] = useState(false);
-  const [videoRecordProgress, setVideoRecordProgress] = useState(0); // 0 to 10 seconds
+  const [videoRecordProgress, setVideoRecordProgress] = useState(0); // 0 to 15 seconds
   const stopVideoRecordingRef = useRef(null);
   const sessionCancelledRef = useRef(false);
   const lastGestureTriggerTimeRef = useRef(0);
@@ -631,7 +633,7 @@ function App() {
     if (imageSrc) {
       const processed = await applyFilter(imageSrc, filter, isMirrored);
       setPhotos((prev) => [...prev, processed]);
-      setRawPhotos((prev) => [...prev, imageSrc]);
+      setRawPhotos((prev) => [...prev, { src: imageSrc, mirror: true }]);
     }
   }, [filter, isMirrored, applyFilter]);
 
@@ -654,7 +656,16 @@ function App() {
     const reapplyFilters = async () => {
       try {
         const newPhotos = await Promise.all(
-          rawPhotos.map((raw) => applyFilter(raw, filter, isMirrored))
+          rawPhotos.map((item) => {
+            const src = typeof item === "string" ? item : item.src;
+            const mirror =
+              typeof item === "string"
+                ? isMirrored
+                : item.mirror
+                  ? isMirrored
+                  : false;
+            return applyFilter(src, filter, mirror);
+          })
         );
 
         if (!isCancelled) {
@@ -671,6 +682,83 @@ function App() {
       isCancelled = true;
     };
   }, [filter, isMirrored, rawPhotos, applyFilter]);
+
+  // Upload photos from device / gallery (single or batch)
+  const handleUploadPhotos = useCallback(
+    async (files, targetIndex = null) => {
+      if (!files || files.length === 0) return;
+      const fileArray = Array.from(files).filter((file) =>
+        file.type.startsWith("image/")
+      );
+      if (fileArray.length === 0) return;
+
+      const readFileAsDataUrl = (file) =>
+        new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = (e) => reject(e);
+          reader.readAsDataURL(file);
+        });
+
+      try {
+        if (targetIndex !== null) {
+          // Retake / replace specific pose slot
+          const dataUrl = await readFileAsDataUrl(fileArray[0]);
+          const processed = await applyFilter(dataUrl, filter, false);
+          setPhotos((prev) => {
+            const next = [...prev];
+            next[targetIndex] = processed;
+            return next;
+          });
+          setRawPhotos((prev) => {
+            const next = [...prev];
+            next[targetIndex] = { src: dataUrl, mirror: false };
+            return next;
+          });
+          setRetakeIndex(null);
+          setMobileTab("strip");
+          return;
+        }
+
+        // Multi-photo batch upload to fill slots
+        const needed = activeLayout.count;
+        let basePhotos = photos;
+        let baseRaw = rawPhotos;
+
+        // If session was already complete, start fresh
+        if (basePhotos.length >= needed) {
+          basePhotos = [];
+          baseRaw = [];
+        }
+
+        const remainingSlots = needed - basePhotos.length;
+        const filesToProcess = fileArray.slice(0, remainingSlots);
+
+        const newProcessed = [];
+        const newRaw = [];
+
+        for (const file of filesToProcess) {
+          const dataUrl = await readFileAsDataUrl(file);
+          const processed = await applyFilter(dataUrl, filter, false);
+          newProcessed.push(processed);
+          newRaw.push({ src: dataUrl, mirror: false });
+        }
+
+        const finalPhotos = [...basePhotos, ...newProcessed];
+        const finalRaw = [...baseRaw, ...newRaw];
+
+        setPhotos(finalPhotos);
+        setRawPhotos(finalRaw);
+
+        if (finalPhotos.length >= needed) {
+          setMobileTab("strip");
+        }
+      } catch (err) {
+        console.error("Error processing uploaded photos:", err);
+      }
+    },
+    [activeLayout.count, photos, rawPhotos, filter, applyFilter]
+  );
 
   // Record 1 video slot (max 10 seconds) using MediaRecorder on live webcam stream
   const recordVideoSlot = useCallback(() => {
@@ -728,8 +816,8 @@ function App() {
 
       timer = setInterval(() => {
         const elapsed = (Date.now() - startTime) / 1000;
-        setVideoRecordProgress(Math.min(10, elapsed));
-        if (elapsed >= 10) {
+        setVideoRecordProgress(Math.min(15, elapsed));
+        if (elapsed >= 15) {
           finalizeAndStop();
         }
       }, 100);
@@ -857,7 +945,7 @@ function App() {
           });
           setRawPhotos((prev) => {
             const next = [...prev];
-            next[targetIndex] = imageSrc;
+            next[targetIndex] = { src: imageSrc, mirror: true };
             return next;
           });
         }
@@ -2413,15 +2501,15 @@ function App() {
         ),
       );
 
-      // Determine duration from clips or default to 10 seconds
-      let durationSeconds = 10;
+      // Determine duration from clips or default to 15 seconds
+      let durationSeconds = 15;
       const validDurations = videoElements
         .map((v) => v.duration)
         .filter((d) => typeof d === "number" && isFinite(d) && d > 0);
       if (validDurations.length > 0) {
         durationSeconds = Math.max(...validDurations);
       }
-      durationSeconds = Math.min(10, Math.max(3, Math.round(durationSeconds)));
+      durationSeconds = Math.min(15, Math.max(3, Math.round(durationSeconds)));
 
       // Start synchronized playback from time 0
       videoElements.forEach((v) => {
@@ -3725,6 +3813,9 @@ function App() {
               onChangeDateStampText={setDateStampText}
               isKioskMode={isKioskMode}
               onToggleKiosk={handleToggleKiosk}
+              inputSource={inputSource}
+              setInputSource={setInputSource}
+              onUploadPhotos={handleUploadPhotos}
             />
           </div>
 

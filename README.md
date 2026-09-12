@@ -8,6 +8,7 @@
 
 ## ✨ Fitur Unggulan
 
+- 📁 **Upload Foto dari Galeri**: Bebas memilih antara berfoto langsung lewat kamera atau mengunggah koleksi gambar dari galeri HP/laptop (mendukung batch upload dan drag & drop).
 - 🖐️ **Hands-Free Gesture (Isyarat 5 Jari)**: Memotret dari kejauhan cukup dengan membentangkan kelima jari ke arah kamera (didukung oleh MediaPipe AI Vision offline).
 - 🎞️ **Filter Retro & Digicam Y2K**: Pilihan filter vintage otentik (*Light Leak 35mm*, *Film Grain 800*, *Lo-Res Story*, *Golden Hour*, *Anime Pastel*, *Cyberpunk*, dan *B&W High Contrast*).
 - 🖱️ **Stiker Bebas Geser (Drag & Drop)**: Tambahkan stiker lucu dan seret bebas ke posisi mana pun di atas strip foto Anda.

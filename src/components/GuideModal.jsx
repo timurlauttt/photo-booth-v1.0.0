@@ -12,6 +12,7 @@ import {
   Camera,
   CheckCircle2,
   HelpCircle,
+  UploadCloud,
 } from "lucide-react";
 
 export default function GuideModal() {
@@ -157,10 +158,11 @@ export default function GuideModal() {
                           3
                         </span>
                         <span>
-                          <strong>Mulai Memotret:</strong> Klik tombol kuning{" "}
-                          <strong>MULAI FOTO</strong> atau gunakan{" "}
-                          <strong>Isyarat 5 Jari</strong> tangan tanpa menyentuh
-                          layar.
+                          <strong>Foto Sendiri atau Upload Gambar:</strong> Anda bisa memilih antara:
+                          <span className="block mt-1 pl-2 border-l-2 border-slate-400 space-y-0.5">
+                            <span>• <strong>Mode Kamera:</strong> Klik tombol kuning <strong>MULAI FOTO</strong> atau gunakan <strong>Isyarat 5 Jari</strong> untuk selfie hands-free.</span><br />
+                            <span>• <strong>Mode Upload Foto:</strong> Klik tab <strong>UPLOAD FOTO</strong> untuk mengunggah gambar favorit langsung dari galeri HP atau laptop (bisa drag & drop sekaligus).</span>
+                          </span>
                         </span>
                       </li>
                       <li className="flex items-start gap-2">
@@ -382,8 +384,7 @@ export default function GuideModal() {
                         • Tekan tombol <strong>Retake Pose</strong> yang muncul.
                       </p>
                       <p>
-                        • Kamera akan menghitung mundur dan hanya memperbarui
-                        pose tersebut tanpa mengganggu foto lainnya!
+                        • Kamera akan menghitung mundur untuk memotret ulang, atau jika Anda di tab <strong>Upload</strong>, Anda bisa memilih gambar baru dari file perangkat untuk menggantikan pose tersebut!
                       </p>
                     </div>
                   </div>
